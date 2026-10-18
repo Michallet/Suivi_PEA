@@ -52,3 +52,44 @@ alter table versements   enable row level security;
 alter table secteurs     enable row level security;
 alter table tickers      enable row level security;
 alter table snapshots    enable row level security;
+
+-- =====================================================================================
+-- v3 : watchlist, scénarios (portefeuille projet), analyses IA
+-- (relançable sans risque sur une base existante : "if not exists")
+-- =====================================================================================
+
+create table if not exists watchlist (
+  isin      text primary key references tickers(isin) on delete cascade,
+  note      text,
+  ajoute_le timestamptz not null default now()
+);
+
+create table if not exists scenarios (
+  id        bigint generated always as identity primary key,
+  nom       text    not null unique,
+  versement numeric not null default 0 check (versement >= 0),   -- versement fictif du scénario
+  cree_le   timestamptz not null default now()
+);
+
+create table if not exists scenario_trades (
+  id          bigint generated always as identity primary key,
+  scenario_id bigint  not null references scenarios(id) on delete cascade,
+  isin        text    not null,
+  type        text    not null check (type in ('ACHAT', 'VENTE')),
+  quantite    numeric not null check (quantite > 0),
+  prix        numeric not null check (prix >= 0),                -- cours au moment de la simulation
+  cree_le     timestamptz not null default now()
+);
+
+create table if not exists analyses_ia (
+  id         bigint generated always as identity primary key,
+  cree_le    timestamptz not null default now(),
+  modele     text,
+  empreinte  text  not null,   -- signature de la composition analysée (évite les appels inutiles)
+  resultat   jsonb not null
+);
+
+alter table watchlist       enable row level security;
+alter table scenarios       enable row level security;
+alter table scenario_trades enable row level security;
+alter table analyses_ia     enable row level security;

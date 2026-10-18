@@ -234,3 +234,53 @@ def reconstituer_snapshots(trans: pd.DataFrame, flux: pd.DataFrame,
         "valeur": valeur.to_numpy() + cum["delta_cash"].to_numpy(),
         "apports": cum["delta_apports"].to_numpy(),
     })
+
+
+# --------------------------------------------------------------------------- #
+# Scénarios (portefeuille « projet ») : le réel n'est jamais modifié
+# --------------------------------------------------------------------------- #
+COLS_JOURNAL = ["date", "isin", "type", "quantite", "prix", "frais"]
+
+
+def appliquer_scenario(trans: pd.DataFrame, sim: pd.DataFrame | None, div: pd.DataFrame,
+                       vers: pd.DataFrame, versement_fictif: float = 0.0, jour=None):
+    """Rejoue le journal RÉEL puis les opérations FICTIVES (datées du jour).
+
+    Retourne (positions, ventes, cash). Lève ValueError si une vente fictive dépasse
+    la quantité détenue. Aucune écriture : fonction pure.
+    """
+    jour = pd.Timestamp(jour if jour is not None else pd.Timestamp.today()).normalize()
+    reel = trans.reindex(columns=COLS_JOURNAL)
+    if sim is None or len(sim) == 0:
+        fictif = reel.iloc[0:0]
+    else:
+        fictif = pd.DataFrame({
+            "date": jour, "isin": sim["isin"].to_numpy(), "type": sim["type"].to_numpy(),
+            "quantite": sim["quantite"].to_numpy(), "prix": sim["prix"].to_numpy(), "frais": 0.0})
+    journal = pd.concat([reel, fictif], ignore_index=True)
+    positions, ventes = calcul_positions(journal)
+    cash = float(flux_tresorerie(journal, div, vers)["delta_cash"].sum()) + float(versement_fictif)
+    return positions, ventes, cash
+
+
+def repartition(pos: pd.DataFrame, cash: float) -> pd.DataFrame:
+    """Poids (% de la valeur totale PEA, cash inclus) par ligne. Colonnes : label, secteur, valeur, poids_pct."""
+    lignes = []
+    if pos is not None and not pos.empty:
+        lignes = pos[["nom", "secteur", "valeur"]].rename(columns={"nom": "label"}).to_dict("records")
+    if cash > 0.005:
+        lignes.append({"label": "Cash", "secteur": "Cash", "valeur": float(cash)})
+    df = pd.DataFrame(lignes, columns=["label", "secteur", "valeur"])
+    total = df["valeur"].sum()
+    df["poids_pct"] = df["valeur"] / total * 100 if total > 0 else 0.0
+    return df
+
+
+def comparer_repartitions(reel: pd.DataFrame, proj: pd.DataFrame, cle: str = "label") -> pd.DataFrame:
+    """Poids actuel vs projeté, par `cle` (« label » ou « secteur »), trié par poids décroissant."""
+    a = reel.groupby(cle)["poids_pct"].sum().rename("reel")
+    b = proj.groupby(cle)["poids_pct"].sum().rename("projete")
+    df = pd.concat([a, b], axis=1).fillna(0.0)
+    df["ecart"] = df["projete"] - df["reel"]
+    df = df.loc[df[["reel", "projete"]].max(axis=1).sort_values(ascending=False).index]
+    return df.rename_axis(cle).reset_index()

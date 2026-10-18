@@ -1,11 +1,12 @@
 """Suivi PEA — interface Streamlit mobile-first.
 
 Local : streamlit run app.py   (secrets dans .streamlit/secrets.toml, voir secrets.toml.example)
+
+* Sans connexion : mode démo (données fictives, aucun accès à la base).
+* Avec le mot de passe : vos données réelles, saisie, watchlist, scénarios et analyse IA.
 """
 from __future__ import annotations
 
-import hmac
-import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -14,17 +15,22 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+import auth
 import calculs as C
 import db
+import demo
 import donnees as D
+import llm
+from schema import SCHEMA
 
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
 
-SEUIL_CONCENTRATION = 25.0  # % du portefeuille au-delà duquel on alerte
+SEUIL_CONCENTRATION = 25.0  # % des titres au-delà duquel on alerte
 BENCHMARKS = {"MSCI World (CW8)": "CW8.PA", "CAC 40": "^FCHI", "Euro Stoxx 50": "^STOXX50E"}
 VERT, ROUGE = "#16a34a", "#dc2626"
 PARIS = ZoneInfo("Europe/Paris")
 PLOTLY = {"displayModeBar": False}
+NOUVEL_ISIN = "➕ Nouvel ISIN…"
 LIBELLES_VERS = {"VERSEMENT": "Versement", "RETRAIT": "Retrait",
                  "PV_ANTERIEURE": "Plus-value antérieure réinvestie (hors apports)"}
 
@@ -74,40 +80,8 @@ def pastille(v: float, texte: str) -> str:
 
 
 def flash(msg: str) -> None:
-    """Message affiché après le prochain rechargement (toast)."""
+    """Message affiché (toast) après le prochain rechargement."""
     st.session_state["flash"] = msg
-
-
-def secret(nom: str):
-    try:
-        return st.secrets[nom]
-    except Exception:
-        return None
-
-
-def demander_mdp(nom_secret: str, etiquette: str, cle: str) -> bool:
-    """Déverrouille une zone par mot de passe. Refuse tout accès si le secret est absent."""
-    attendu = secret(nom_secret)
-    if attendu is None:
-        st.error(f"Secret `{nom_secret}` non configuré : accès désactivé.")
-        return False
-    if st.session_state.get(cle):
-        return True
-    echecs = st.session_state.get(cle + "_n", 0)
-    if echecs >= 5:
-        st.error("Trop de tentatives. Rechargez la page plus tard.")
-        return False
-    with st.form(cle + "_form"):
-        saisi = st.text_input(etiquette, type="password")
-        valide = st.form_submit_button("Déverrouiller")
-    if valide:
-        if hmac.compare_digest(saisi.encode(), str(attendu).encode()):
-            st.session_state[cle] = True
-            st.rerun()
-        st.session_state[cle + "_n"] = echecs + 1
-        time.sleep(min(2 ** echecs, 8))  # ralentit les essais successifs
-        st.error("Mot de passe incorrect.")
-    return False
 
 
 def nom_de(tmap: pd.DataFrame, isin: str) -> str:
@@ -122,40 +96,73 @@ def enregistrer_ticker(isin: str, ticker: str, nom: str | None = None) -> str | 
         return f"Aucun cours trouvé pour « {ticker} »."
     if v["devise"] not in (None, "EUR"):
         return f"« {ticker} » cote en {v['devise']} : indiquez la cotation européenne en € (ex : MC.PA)."
-    db.upsert("tickers", [{"isin": isin, "ticker": ticker, "nom": v["nom"],
-                           "dernier_prix": v["prix"],
+    db.upsert("tickers", [{"isin": isin, "ticker": ticker, "nom": v["nom"], "dernier_prix": v["prix"],
                            "dernier_prix_at": maintenant().isoformat()}], "isin")
     return None
 
 
 # --------------------------------------------------------------------------- #
-# Accès, chargement des données
+# Mode (démo / réel) et en-tête
 # --------------------------------------------------------------------------- #
-if secret("VIEW_PASSWORD") is not None and not demander_mdp("VIEW_PASSWORD", "Mot de passe", "lecture_ok"):
-    st.stop()
+reel = auth.connecte()
+store = db if reel else demo.DemoStore()
+marche_fn = D.cours_batch if reel else demo.cours_batch
+fonds_fn = D.fondamentaux_batch if reel else demo.fondamentaux_batch
 
 if "flash" in st.session_state:
     st.toast(st.session_state.pop("flash"))
 
+if reel:
+    t1, t2, t3 = st.columns([4, 1, 1], vertical_alignment="center")
+    t1.title("📈 Mon PEA")
+    if t2.button("🔄", help="Actualiser les cours"):
+        D.cours_batch.clear()
+        D.fondamentaux_batch.clear()
+        db.rafraichir()
+        st.rerun()
+    if t3.button("🔒", help="Se déconnecter"):
+        auth.deconnecter()
+        st.rerun()
+else:
+    st.title("📈 Mon PEA")
+    st.info("🧪 **Mode démo** : portefeuille fictif, rien n'est enregistré. "
+            "Connectez-vous pour accéder à vos données réelles.")
+    with st.expander("🔓 Se connecter"):
+        auth.formulaire_connexion()
+
+# --------------------------------------------------------------------------- #
+# Chargement des données
+# --------------------------------------------------------------------------- #
 try:
-    trans, div, vers = db.lire("transactions"), db.lire("dividendes"), db.lire("versements")
-    tick, sect, snaps = db.lire("tickers"), db.lire("secteurs"), db.lire("snapshots")
-except Exception as e:  # on n'affiche pas le détail : il pourrait contenir des infos sensibles
+    trans, div, vers = store.lire("transactions"), store.lire("dividendes"), store.lire("versements")
+    tick, sect, snaps = store.lire("tickers"), store.lire("secteurs"), store.lire("snapshots")
+except Exception as e:  # pas de détail à l'écran : il pourrait contenir des infos sensibles
     st.error("Connexion à la base impossible. Vérifiez SUPABASE_URL et SUPABASE_KEY dans les "
              "secrets, et que schema.sql a bien été exécuté.")
     st.caption(f"Type d'erreur : {type(e).__name__}")
     st.stop()
 
+tables_manquantes = []
+
+
+def lire_sur(table: str) -> pd.DataFrame:
+    """Tables ajoutées en v3 : si elles n'existent pas encore, l'app reste utilisable."""
+    try:
+        return store.lire(table)
+    except Exception:
+        tables_manquantes.append(table)
+        return pd.DataFrame(columns=SCHEMA[table])
+
+
+wl, scen = lire_sur("watchlist"), lire_sur("scenarios")
+scen_tr, analyses = lire_sur("scenario_trades"), lire_sur("analyses_ia")
+if tables_manquantes:
+    st.warning("Tables manquantes : " + ", ".join(tables_manquantes)
+               + ". Exécutez la version à jour de schema.sql dans Supabase.")
+
 tmap = (tick.set_index("isin") if not tick.empty
         else pd.DataFrame(columns=["ticker", "nom", "dernier_prix", "dernier_prix_at"]))
-
-t1, t2 = st.columns([4, 1], vertical_alignment="center")
-t1.title("📈 Mon PEA")
-if t2.button("🔄", help="Actualiser les cours"):
-    D.cours_batch.clear()
-    D.fondamentaux_batch.clear()
-    db.lire.clear()
-    st.rerun()
+sect_dict = dict(zip(sect["isin"], sect["secteur"]))
 
 # --------------------------------------------------------------------------- #
 # Calculs
@@ -168,19 +175,15 @@ except ValueError as e:
     positions, ventes = C.calcul_positions(trans.iloc[0:0])
 
 flux = C.flux_tresorerie(trans, div, vers)
-tickers_pos: tuple = ()
-horodatage = maintenant()
-fonds: dict = {}
-pos = positions.copy()
-maj_prix: list[dict] = []
+div_par_isin = div.groupby("isin")["montant"].sum()
 
-if not positions.empty:
-    isins = positions["isin"].tolist()
-    tickers_pos = tuple(dict.fromkeys(tmap.loc[i, "ticker"] for i in isins if i in tmap.index))
-    marche, horodatage = D.cours_batch(tickers_pos) if tickers_pos else ({}, maintenant())
-    fonds = D.fondamentaux_batch(tickers_pos) if tickers_pos else {}
 
-    lignes = []
+def charger_cours(isins: list[str]):
+    """Cours (live > dernier connu > prix de revient) pour une liste d'ISIN."""
+    connus = [i for i in isins if i in tmap.index]
+    tickers = tuple(dict.fromkeys(tmap.loc[i, "ticker"] for i in connus))
+    marche, horo = marche_fn(tickers) if tickers else ({}, maintenant())
+    lignes, maj = [], []
     for isin in isins:
         connu = isin in tmap.index
         ticker = tmap.loc[isin, "ticker"] if connu else None
@@ -188,58 +191,370 @@ if not positions.empty:
         dernier = None if dernier is None or pd.isna(dernier) else float(dernier)
         m = marche.get(ticker, {})
         prix, prev, statut = m.get("prix"), m.get("prev"), "live"
-        if prix is None:  # Yahoo n'a pas répondu : dernier cours connu, sinon valorisation au PRM
+        if prix is None:
             prix, statut = dernier, ("obsolète" if dernier else "estimé")
-        elif connu and (dernier is None or abs(dernier - prix) > 1e-9):
-            maj_prix.append({"isin": isin, "ticker": ticker, "nom": nom_de(tmap, isin),
-                             "dernier_prix": prix, "dernier_prix_at": maintenant().isoformat()})
+        elif reel and connu and (dernier is None or abs(dernier - prix) > 1e-9):
+            maj.append({"isin": isin, "ticker": ticker, "nom": nom_de(tmap, isin),
+                        "dernier_prix": prix, "dernier_prix_at": maintenant().isoformat()})
         lignes.append({"isin": isin, "ticker": ticker, "nom": nom_de(tmap, isin) if connu else None,
                        "prix": prix, "prev_close": prev, "statut": statut})
+    cols = ["isin", "ticker", "nom", "prix", "prev_close", "statut"]
+    return pd.DataFrame(lignes, columns=cols), maj, horo, tickers
 
-    pos = C.enrichir_positions(positions, pd.DataFrame(lignes), div.groupby("isin")["montant"].sum())
-    sect_dict = dict(zip(sect["isin"], sect["secteur"]))
-    pos["secteur"] = [sect_dict.get(i) or fonds.get(t, {}).get("secteur_yahoo") or "Inconnu"
-                      for i, t in zip(pos["isin"], pos["ticker"])]
 
+isins_tous = list(dict.fromkeys(positions["isin"].tolist() + wl["isin"].tolist() + scen_tr["isin"].tolist()))
+cours_all, maj_prix, horodatage, tickers_tous = charger_cours(isins_tous)
+fonds = fonds_fn(tickers_tous) if tickers_tous else {}
+
+
+def secteur_de(isin: str, ticker) -> str:
+    return sect_dict.get(isin) or fonds.get(ticker, {}).get("secteur_yahoo") or "Inconnu"
+
+
+def enrichir_complet(pos_brutes: pd.DataFrame) -> pd.DataFrame:
+    if pos_brutes.empty:
+        return pos_brutes.copy()
+    p = C.enrichir_positions(pos_brutes, cours_all, div_par_isin)
+    p["secteur"] = [secteur_de(i, t) for i, t in zip(p["isin"], p["ticker"])]
+    return p
+
+
+def prix_courant(isin: str):
+    r = cours_all[cours_all["isin"] == isin]
+    return None if r.empty or pd.isna(r.iloc[0]["prix"]) else float(r.iloc[0]["prix"])
+
+
+pos = enrichir_complet(positions)
 s = C.synthese(pos, flux, vers)
 
-# Mémorise les derniers cours (repli si Yahoo tombe) et le point de courbe du jour
-try:
-    if maj_prix:
-        db.upsert("tickers", maj_prix, "isin")
-    estimes = (not pos.empty) and (pos["statut"] == "estimé").any()
-    if not trans.empty and not estimes and maintenant().weekday() < 5:
-        auj = pd.Timestamp(maintenant().date())
-        ligne = snaps[snaps["date"] == auj]
-        nouveau = {"valeur": round(s["valeur_totale"], 2), "apports": round(s["apports"], 2)}
-        if ligne.empty or any(abs(ligne.iloc[0][k] - v) > 0.01 for k, v in nouveau.items()):
-            db.upsert("snapshots", [{"date": auj, **nouveau}], "date")
-except Exception:
-    pass  # un échec d'écriture ne doit jamais bloquer l'affichage
+# Mémorise les derniers cours et le point de courbe du jour (données réelles uniquement)
+if reel:
+    try:
+        if maj_prix:
+            db.upsert("tickers", maj_prix, "isin")
+        estimes = (not pos.empty) and (pos["statut"] == "estimé").any()
+        if not trans.empty and not estimes and maintenant().weekday() < 5:
+            auj = pd.Timestamp(maintenant().date())
+            ligne = snaps[snaps["date"] == auj]
+            nouveau = {"valeur": round(s["valeur_totale"], 2), "apports": round(s["apports"], 2)}
+            if ligne.empty or any(abs(ligne.iloc[0][k] - v) > 0.01 for k, v in nouveau.items()):
+                db.upsert("snapshots", [{"date": auj, **nouveau}], "date")
+    except Exception:
+        pass  # un échec d'écriture ne doit jamais bloquer l'affichage
 
-manquants = sorted(set(trans["isin"]) - set(tmap.index))
+manquants = sorted(set(trans["isin"]) - set(tmap.index)) if reel else []
+
+
+def ordre_isins() -> list[str]:
+    """ISIN proposés dans les formulaires : détenus, puis watchlist, puis les autres connus."""
+    detenus = positions["isin"].tolist()
+    suivis = [i for i in wl["isin"] if i not in detenus]
+    return detenus + suivis + [i for i in tmap.index if i not in detenus and i not in suivis]
+
+
+def choisir_isin(label: str, options: list[str], cle: str, nouveau: bool = True) -> str:
+    """Liste déroulante (recherche au clavier) + saisie d'un nouvel ISIN si besoin."""
+    opts = list(options) + ([NOUVEL_ISIN] if nouveau else [])
+    if not opts:
+        return ""
+    choix = st.selectbox(label, opts, key=cle + "_sel",
+                         format_func=lambda i: i if i == NOUVEL_ISIN else f"{nom_de(tmap, i)} ({i})")
+    if choix == NOUVEL_ISIN:
+        return st.text_input("ISIN", key=cle + "_new", placeholder="FR0000121014").strip().upper()
+    return choix
+
 
 # --------------------------------------------------------------------------- #
-# Onglet Saisie
+# Analyse IA
 # --------------------------------------------------------------------------- #
-def onglet_saisie() -> None:
-    if not demander_mdp("ADMIN_PASSWORD", "Mot de passe admin", "admin_ok"):
+def afficher_analyse(res: dict, quand, perime: bool) -> None:
+    c1, c2 = st.columns([1, 2])
+    c1.metric("Note globale", f"{llm.note_globale(res):.1f}/10")
+    c2.markdown(f"_{res['conclusion']}_")
+    for c in res["criteres"]:
+        st.markdown(f"**{c['label']}** · {c['note']}/10")
+        st.progress(c["note"] / 10)
+        st.caption(c["synthese"])
+    suite = " · ⚠️ portefeuille modifié depuis" if perime else ""
+    st.caption(f"Analysé le {quand:%d/%m/%Y à %H:%M} · {res.get('modele', '')}{suite}")
+    st.caption(llm.AVERTISSEMENT)
+
+
+def bloc_ia() -> None:
+    with st.container(border=True):
+        st.markdown("#### ✨ Analyse IA")
+        derniere = None if analyses.empty else analyses.sort_values("id").iloc[-1]
+
+        if not reel:
+            st.button("✨ Analyser mon portefeuille", disabled=True, key="ia_btn_demo")
+            st.caption("Exemple fictif (aucun appel IA en mode démo). Connectez-vous pour analyser votre PEA.")
+            afficher_analyse(llm.EXEMPLE, maintenant(), False)
+            return
+        if pos.empty:
+            st.caption("Aucune ligne à analyser.")
+            return
+
+        cle_api = auth.secret("GEMINI_API_KEY")
+        modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+        per_isin = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
+        texte, empreinte = llm.construire_contexte(pos, s["cash"], per_isin, modele)
+
+        jours = (pd.to_datetime(analyses["cree_le"], utc=True, errors="coerce").dt.tz_convert(PARIS).dt.date
+                 if not analyses.empty else pd.Series(dtype=object))
+        n_auj = int((jours == maintenant().date()).sum())
+        limite = n_auj >= llm.MAX_APPELS_PAR_JOUR
+        a_jour = derniere is not None and derniere["empreinte"] == empreinte
+
+        label = "✨ Relancer l'analyse" if a_jour else "✨ Analyser mon portefeuille"
+        clic = st.button(label, key="ia_btn", disabled=(not cle_api) or limite)
+        if not cle_api:
+            st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse.")
+        elif limite:
+            st.caption(f"Limite de {llm.MAX_APPELS_PAR_JOUR} analyses par jour atteinte.")
+        else:
+            st.caption("Envoie à Gemini uniquement les poids en % (aucun montant en €).")
+
+        if clic:
+            try:
+                with st.spinner("Analyse en cours…"):
+                    res = llm.analyser(texte, cle_api, modele)
+            except llm.ErreurIA as e:
+                st.error(str(e))
+            else:
+                store.inserer("analyses_ia", {"modele": modele, "empreinte": empreinte, "resultat": res})
+                flash("Analyse enregistrée ✨")
+                st.rerun()
+
+        if derniere is not None:
+            quand = pd.to_datetime(derniere["cree_le"], utc=True).tz_convert(PARIS)
+            afficher_analyse(derniere["resultat"], quand, not a_jour)
+
+
+# --------------------------------------------------------------------------- #
+# Onglet Watchlist
+# --------------------------------------------------------------------------- #
+def onglet_watchlist() -> None:
+    if wl.empty:
+        st.info("Votre watchlist est vide. Ajoutez des valeurs : elles seront proposées dans les "
+                "formulaires de saisie et dans les scénarios.")
+    for r in wl.itertuples():
+        c = cours_all[cours_all["isin"] == r.isin]
+        prix = prev = None if c.empty else None
+        if not c.empty:
+            prix, prev = c.iloc[0]["prix"], c.iloc[0]["prev_close"]
+        var = (prix / prev - 1) * 100 if prix and prev and not pd.isna(prev) else None
+        note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
+        with st.container(border=True):
+            g, d, x = st.columns([5, 3, 1], vertical_alignment="center")
+            g.markdown(f"**{nom_de(tmap, r.isin)}**{note}")
+            txt = f"**{fmt(prix)} €**" if prix and not pd.isna(prix) else "N/A"
+            if var is not None:
+                txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} %")
+            d.markdown(f"<div style='text-align:right'>{txt}</div>", unsafe_allow_html=True)
+            if x.button("✖", key=f"wl_del_{r.isin}", help="Retirer de la watchlist"):
+                store.supprimer("watchlist", r.isin, cle="isin")
+                flash("Retiré de la watchlist")
+                st.rerun()
+
+    with st.expander("➕ Ajouter une action / un ETF"):
+        if not reel:
+            st.caption("Disponible après connexion.")
+            return
+        with st.form("f_wl", clear_on_submit=True):
+            isin = st.text_input("ISIN", placeholder="FR0000121014")
+            tk = st.text_input("Ticker Yahoo (facultatif)", placeholder="ex : MC.PA — si l'ISIN n'est pas reconnu")
+            note = st.text_input("Note (facultatif)")
+            ok = st.form_submit_button("Ajouter")
+        if ok:
+            isin, tk = isin.strip().upper(), tk.strip().upper()
+            if not C.isin_valide(isin):
+                st.error("ISIN invalide (12 caractères, clé de contrôle incorrecte).")
+            elif isin in wl["isin"].tolist():
+                st.info("Déjà dans la watchlist.")
+            else:
+                if isin not in tmap.index or tk:
+                    trouve = None if tk else D.chercher_ticker(isin)
+                    ticker = tk or (trouve or {}).get("ticker")
+                    err = (enregistrer_ticker(isin, ticker, (trouve or {}).get("nom"))
+                           if ticker else "Ticker introuvable : renseignez-le dans le champ dédié.")
+                    if err:
+                        st.error(err)
+                        return
+                db.upsert("watchlist", [{"isin": isin, "note": note.strip() or None}], "isin")
+                flash("Ajouté à la watchlist ✅")
+                st.rerun()
+
+
+# --------------------------------------------------------------------------- #
+# Onglet Projet (scénarios)
+# --------------------------------------------------------------------------- #
+def graphique_compare(df: pd.DataFrame, cle: str) -> None:
+    d = df.iloc[::-1]  # le plus gros en haut
+    fig = go.Figure()
+    fig.add_bar(y=d[cle], x=d["reel"], name="Actuel", orientation="h")
+    fig.add_bar(y=d[cle], x=d["projete"], name="Projeté", orientation="h")
+    fig.update_layout(barmode="group", margin=dict(l=0, r=0, t=10, b=0), height=max(240, 52 * len(d) + 70),
+                      legend=dict(orientation="h", y=-0.12), xaxis_title="% du PEA")
+    st.plotly_chart(fig, config=PLOTLY)
+
+
+def onglet_projet() -> None:
+    st.caption("Simulez une répartition future à partir de votre PEA actuel, **sans le modifier**. "
+               "Les opérations sont fictives, au dernier cours connu.")
+    if st.session_state.pop("scenario_reset", False):
+        st.session_state.pop("scenario_id", None)
+    if "scenario_pending" in st.session_state:
+        st.session_state["scenario_id"] = st.session_state.pop("scenario_pending")
+
+    noms = dict(zip(scen["id"].astype(int), scen["nom"]))
+    with st.expander("➕ Nouveau scénario", expanded=scen.empty):
+        with st.form("f_scen", clear_on_submit=True):
+            nom = st.text_input("Nom", placeholder="ex : Renforcer la santé")
+            ok = st.form_submit_button("Créer")
+        if ok:
+            nom = nom.strip()
+            if not nom:
+                st.error("Donnez un nom au scénario.")
+            elif nom in noms.values():
+                st.error("Ce nom existe déjà.")
+            else:
+                row = store.inserer("scenarios", {"nom": nom, "versement": 0})
+                st.session_state["scenario_pending"] = int(row["id"])
+                flash("Scénario créé ✅")
+                st.rerun()
+    if scen.empty:
         return
-    if st.button("🔒 Verrouiller"):
-        st.session_state["admin_ok"] = False
+
+    sid = st.selectbox("Scénario", list(noms), format_func=noms.get, key="scenario_id")
+    sim = scen_tr[scen_tr["scenario_id"] == sid]
+    versement = float(scen.loc[scen["id"] == sid, "versement"].iloc[0])
+
+    try:
+        brutes, _, cash_p = C.appliquer_scenario(trans, sim, div, vers, versement, maintenant().date())
+    except ValueError as e:
+        st.error(f"Scénario incohérent : {e}")
+        return
+    pos_p = enrichir_complet(brutes)
+
+    # --- Opérations fictives et actions rapides ----------------------------- #
+    st.markdown("**Opérations fictives**")
+    if sim.empty and versement == 0:
+        st.caption("Aucune opération pour l'instant.")
+    for r in sim.itertuples():
+        st.markdown(f"- {r.type} {r.quantite:g} × {nom_de(tmap, r.isin)} @ {fmt(r.prix)} € "
+                    f"(≈ {fmt(r.quantite * r.prix, 0)} €)")
+    if versement:
+        st.markdown(f"- Versement fictif : {fmt(versement, 0)} €")
+    b1, b2, b3 = st.columns(3)
+    if b1.button("↩️ Annuler", disabled=sim.empty, key="sc_undo", help="Annule la dernière opération"):
+        store.supprimer("scenario_trades", int(sim["id"].max()))
+        st.rerun()
+    if b2.button("🧹 Vider", disabled=sim.empty and versement == 0, key="sc_clear",
+                 help="Repart du PEA actuel"):
+        store.supprimer("scenario_trades", sid, cle="scenario_id")
+        store.modifier("scenarios", sid, {"versement": 0})
+        st.rerun()
+    if b3.button("🗑 Supprimer", key="sc_del", help="Supprime le scénario"):
+        store.supprimer("scenarios", sid)
+        st.session_state["scenario_reset"] = True
+        flash("Scénario supprimé")
         st.rerun()
 
+    # --- Ajouter une opération ---------------------------------------------- #
+    with st.expander("➕ Ajouter une opération", expanded=sim.empty):
+        typ = st.radio("Opération", ["ACHAT", "VENTE"], horizontal=True, key="sc_typ")
+        detenus = brutes["isin"].tolist()
+        options = detenus if typ == "VENTE" else ordre_isins()
+        if not options:
+            st.info("Aucune ligne à vendre." if typ == "VENTE" else "Ajoutez d'abord des valeurs en watchlist.")
+        else:
+            isin = st.selectbox("Ligne", options, key="sc_isin",
+                                format_func=lambda i: f"{nom_de(tmap, i)} ({i})")
+            px_ = prix_courant(isin)
+            modes = ["Montant (€)", "Quantité"] + (["Tout"] if typ == "VENTE" else [])
+            mode = st.radio("Saisie", modes, horizontal=True, key="sc_mode")
+            st.caption(f"Cours : {fmt(px_)} €" if px_ else "Cours indisponible pour cette ligne.")
+            val = None
+            if mode != "Tout":
+                val = st.number_input(mode, min_value=0.0, value=500.0 if mode.startswith("Montant") else 1.0,
+                                      step=50.0 if mode.startswith("Montant") else 1.0, key=f"sc_val_{mode}")
+            if st.button("Ajouter à ce scénario", key="sc_add"):
+                if not px_:
+                    st.error("Cours indisponible : opération impossible.")
+                else:
+                    if mode == "Tout":
+                        qte = float(brutes.loc[brutes["isin"] == isin, "quantite"].iloc[0])
+                    elif mode.startswith("Montant"):
+                        qte = float(int(val // px_))
+                    else:
+                        qte = float(val)
+                    if qte <= 0:
+                        st.error(f"Montant inférieur au prix d'une part ({fmt(px_)} €).")
+                    else:
+                        cand = pd.concat([sim[["isin", "type", "quantite", "prix"]], pd.DataFrame(
+                            [{"isin": isin, "type": typ, "quantite": qte, "prix": px_}])], ignore_index=True)
+                        try:
+                            C.appliquer_scenario(trans, cand, div, vers, versement, maintenant().date())
+                        except ValueError as e:
+                            st.error(str(e))
+                        else:
+                            store.inserer("scenario_trades", {"scenario_id": sid, "isin": isin, "type": typ,
+                                                              "quantite": qte, "prix": px_})
+                            st.rerun()
+        v = st.number_input("Versement fictif (€)", min_value=0.0, value=versement, step=100.0,
+                            key=f"sc_vers_{sid}")
+        if st.button("Appliquer le versement", key="sc_vers_btn", disabled=(v == versement)):
+            store.modifier("scenarios", sid, {"versement": float(v)})
+            st.rerun()
+
+    # --- Comparaison actuel vs projeté --------------------------------------- #
+    st.subheader("Actuel vs projeté")
+    if cash_p < -0.01:
+        st.warning(f"Cash insuffisant : il manquerait {fmt(-cash_p)} € (ajoutez un versement fictif).")
+    if not pos_p.empty:
+        for r in pos_p.itertuples():
+            if r.poids_pct > SEUIL_CONCENTRATION:
+                st.warning(f"⚠️ {r.nom} pèserait {fmt(r.poids_pct, 0)} % des titres.")
+    k1, k2 = st.columns(2)
+    k1.metric("Cash", f"{fmt(cash_p)} €", f"{fmt(cash_p - s['cash'], 0, True)} €")
+    k2.metric("Lignes", len(pos_p), len(pos_p) - len(pos))
+
+    rep_r, rep_p = C.repartition(pos, s["cash"]), C.repartition(pos_p, cash_p)
+    par_ligne = C.comparer_repartitions(rep_r, rep_p, "label")
+    par_secteur = C.comparer_repartitions(rep_r, rep_p, "secteur")
+    st.markdown("**Par ligne**")
+    graphique_compare(par_ligne, "label")
+    st.markdown("**Par secteur**")
+    graphique_compare(par_secteur, "secteur")
+    with st.expander("Détail des écarts (points de %)"):
+        tableau = par_ligne.rename(columns={"label": "Ligne", "reel": "Actuel %", "projete": "Projeté %",
+                                            "ecart": "Écart"}).round(1)
+        st.dataframe(tableau, hide_index=True)
+    st.caption("Simulation de répartition uniquement : aucune prévision de rendement.")
+
+
+# --------------------------------------------------------------------------- #
+# Onglet Saisie (données réelles uniquement)
+# --------------------------------------------------------------------------- #
+def onglet_saisie() -> None:
+    if not reel:
+        st.info("🔒 La saisie est disponible après connexion.")
+        return
     action = st.selectbox("Action", ["Transaction", "Dividende", "Versement / retrait", "Secteurs",
                                      "Corriger / supprimer", "Maintenance & sauvegarde"])
 
     # -- Transaction ------------------------------------------------------- #
     if action == "Transaction":
+        typ = st.radio("Type", ["ACHAT", "VENTE"], horizontal=True, key="tx_typ")
+        options = positions["isin"].tolist() if typ == "VENTE" else ordre_isins()
+        isin = choisir_isin("Ligne (détenue, watchlist ou autre)" if typ == "ACHAT" else "Ligne à vendre",
+                            options, "tx", nouveau=(typ == "ACHAT"))
+        px_ = prix_courant(isin) if isin in tmap.index else None
         with st.form("f_trans", clear_on_submit=True):
             d = st.date_input("Date", maintenant().date(), format="DD/MM/YYYY")
-            typ = st.radio("Type", ["ACHAT", "VENTE"], horizontal=True)
-            isin = st.text_input("ISIN", placeholder="FR0000121014")
             q = st.number_input("Quantité", min_value=0.0001, value=1.0, step=1.0, format="%.4f")
-            p = st.number_input("Prix unitaire (€)", min_value=0.0, value=100.0, step=0.1, format="%.4f")
+            p = st.number_input("Prix unitaire (€)", min_value=0.0, value=float(px_ or 100.0),
+                                step=0.1, format="%.4f")
             fr = st.number_input("Frais (€)", min_value=0.0, value=0.0, step=0.1, format="%.2f")
             tk = st.text_input("Ticker Yahoo (facultatif)",
                                placeholder="ex : MC.PA — seulement si l'ISIN n'est pas reconnu")
@@ -247,7 +562,7 @@ def onglet_saisie() -> None:
         if not ok:
             return
 
-        isin, tk = isin.strip().upper(), tk.strip().upper()
+        tk = tk.strip().upper()
         if not C.isin_valide(isin):
             st.error("ISIN invalide (12 caractères, clé de contrôle incorrecte).")
             return
@@ -271,8 +586,7 @@ def onglet_saisie() -> None:
         db.inserer("transactions", nouvelle.iloc[0].to_dict())
         msg = "Transaction enregistrée ✅"
         if typ == "VENTE":
-            pv = v_apres["pv"].sum() - ventes["pv"].sum()
-            msg += f" — plus-value réalisée : {fmt(pv, 2, True)} €"
+            msg += f" — plus-value réalisée : {fmt(v_apres['pv'].sum() - ventes['pv'].sum(), 2, True)} €"
         flash(msg)
         st.rerun()
 
@@ -283,8 +597,7 @@ def onglet_saisie() -> None:
             return
         with st.form("f_div", clear_on_submit=True):
             d = st.date_input("Date", maintenant().date(), format="DD/MM/YYYY")
-            isin = st.selectbox("Ligne", tmap.index.tolist(),
-                                format_func=lambda i: f"{nom_de(tmap, i)} ({i})")
+            isin = st.selectbox("Ligne", ordre_isins(), format_func=lambda i: f"{nom_de(tmap, i)} ({i})")
             m = st.number_input("Montant net perçu (€)", min_value=0.01, value=10.0, step=0.5)
             ok = st.form_submit_button("Enregistrer")
         if ok:
@@ -314,128 +627,13 @@ def onglet_saisie() -> None:
             st.info("Enregistrez d'abord une transaction.")
             return
         st.caption("Laissez vide pour utiliser le secteur fourni par Yahoo (en anglais).")
-        actuels = dict(zip(sect["isin"], sect["secteur"]))
         with st.form("f_sect"):
-            saisies = {i: st.text_input(f"{nom_de(tmap, i)} ({i})", value=actuels.get(i, ""))
-                       for i in tmap.index}
+            saisies = {i: st.text_input(f"{nom_de(tmap, i)} ({i})", value=sect_dict.get(i, ""))
+                       for i in ordre_isins()}
             ok = st.form_submit_button("Enregistrer")
         if ok:
             db.upsert("secteurs", [{"isin": i, "secteur": v.strip()} for i, v in saisies.items() if v.strip()],
                       "isin")
-            for i, v in saisies.items():
-                if not v.strip() and i in actuels:
-                    db.supprimer("secteurs", i, cle="isin")
-            flash("Secteurs enregistrés ✅")
-            st.rerun()
-
-    # -- Corriger / supprimer ---------------------------------------------- #
-    elif action == "Corriger / supprimer":
-        table = st.selectbox("Table", list(CFG), format_func=str.capitalize)
-        version = st.session_state.get("ed_version", 0)
-        df = db.lire(table)
-        edit = st.data_editor(df, key=f"ed_{table}_{version}", num_rows="dynamic",
-                              hide_index=True, column_config=CFG[table])
-        if not st.button("💾 Enregistrer les modifications"):
-            return
-        n = edit.copy()
-        requis = [c for c in ("date", "isin", "type", "quantite", "prix", "montant") if c in n]
-        if n[requis].isna().any().any():
-            st.error("Des champs obligatoires sont vides.")
-            return
-        n["date"] = pd.to_datetime(n["date"])
-        if "isin" in n:
-            n["isin"] = n["isin"].str.strip().str.upper()
-            inconnus = sorted(set(n["isin"]) - set(tmap.index))
-            if inconnus:
-                st.error(f"ISIN inconnu(s) : {', '.join(inconnus)}. "
-                         "Ajoutez-les d'abord via l'action « Transaction ».")
-                return
-        if "frais" in n:
-            n["frais"] = n["frais"].fillna(0.0)
-        if table == "transactions":
-            try:
-                C.calcul_positions(n)
-            except ValueError as e:
-                st.error(str(e))
-                return
-        a, m, sup = db.appliquer_modifs(table, df, n)
-        st.session_state["ed_version"] = version + 1
-        flash(f"{a} ajoutée(s), {m} modifiée(s), {sup} supprimée(s) ✅")
-        st.rerun()
-
-    # -- Maintenance ------------------------------------------------------- #
-    else:
-        st.subheader("Historique")
-        st.caption("Recalcule la valeur du PEA jour par jour depuis votre 1re opération "
-                   "(cours de clôture Yahoo) et remplace les points existants.")
-        if st.button("Reconstituer l'historique", disabled=trans.empty):
-            with st.spinner("Téléchargement des historiques de cours…"):
-                debut = trans["date"].min().strftime("%Y-%m-%d")
-                prix_hist, isin_ticker = {}, tmap["ticker"].to_dict()
-                for t in set(isin_ticker.values()):
-                    try:
-                        prix_hist[t] = D.historique_cloture(t, debut)
-                    except Exception:
-                        pass
-                rec = C.reconstituer_snapshots(trans, flux, prix_hist, isin_ticker)
-                db.upsert("snapshots", [{"date": r.date, "valeur": round(r.valeur, 2),
-                                         "apports": round(r.apports, 2)} for r in rec.itertuples()],
-                          "date")
-            flash(f"{len(rec)} points reconstitués ✅")
-            st.rerun()
-
-        if manquants:
-            st.subheader("Tickers manquants")
-            st.warning(f"{len(manquants)} ISIN sans ticker : {', '.join(manquants)}")
-            if st.button("Résoudre automatiquement"):
-                echecs = []
-                for isin in manquants:
-                    t = D.chercher_ticker(isin)
-                    if not t or enregistrer_ticker(isin, t["ticker"], t["nom"]):
-                        echecs.append(isin)
-                flash("Tickers résolus ✅" if not echecs else f"Échec pour : {', '.join(echecs)}")
-                st.rerun()
-            with st.form("f_tk"):
-                isin = st.selectbox("ISIN", manquants)
-                tk = st.text_input("Ticker Yahoo", placeholder="ex : MC.PA")
-                ok = st.form_submit_button("Enregistrer le ticker")
-            if ok:
-                err = enregistrer_ticker(isin, tk.strip().upper()) if tk.strip() else "Ticker vide."
-                if err:
-                    st.error(err)
-                else:
-                    flash("Ticker enregistré ✅")
-                    st.rerun()
-
-        st.subheader("Sauvegarde")
-        for table in CFG:
-            st.download_button(f"⬇️ {table}.csv", db.lire(table).to_csv(index=False),
-                               file_name=f"{table}.csv", mime="text/csv", key=f"dl_{table}")
-
-
-# --------------------------------------------------------------------------- #
-# Mise en page : 3 onglets
-# --------------------------------------------------------------------------- #
-tab_pf, tab_hist, tab_saisie = st.tabs(["📊 Portefeuille", "📈 Historique", "➕ Saisie"])
-
-with tab_pf:
-    if erreur_journal:
-        st.error(f"Journal incohérent : {erreur_journal} Corrigez-le dans Saisie › Corriger / supprimer.")
-    if manquants:
-        st.warning("Ticker manquant pour : " + ", ".join(manquants)
-                   + " (Saisie › Maintenance). Ces lignes sont valorisées à leur prix de revient.")
-
-    if trans.empty:
-        st.info("Aucune transaction pour l'instant. Rendez-vous dans l'onglet « Saisie ».")
-    else:
-        c1, c2 = st.columns(2)
-        c1.metric("Valeur du PEA", f"{fmt(s['valeur_totale'])} €",
-                  f"{fmt(s['var_jour_eur'], 2, True)} € ({fmt(s['var_jour_pct'], 2, True)} %) auj.")
-        c2.metric("Plus-value globale", f"{fmt(s['pv_globale'])} €",
-                  f"{fmt(s['perf_pct'], 2, True)} %")
-        c3, c4 = st.columns(2)
-        c3.metric("Apports nets", f"{fmt(s['apports'])} €")
-        c4.metri       "isin")
             for i, v in saisies.items():
                 if not v.strip() and i in sect_dict:
                     db.supprimer("secteurs", i, cle="isin")
@@ -523,7 +721,7 @@ with tab_pf:
 
         st.subheader("Sauvegarde")
         for table in list(CFG) + ["watchlist"]:
-            st.download_button(f"⬇ {table}.csv", db.lire(table).to_csv(index=False),
+            st.download_button(f"⬇️ {table}.csv", db.lire(table).to_csv(index=False),
                                file_name=f"{table}.csv", mime="text/csv", key=f"dl_{table}")
 
 
@@ -562,7 +760,7 @@ with tab_pf:
         if not pos.empty:
             for r in pos.itertuples():
                 if r.poids_pct > SEUIL_CONCENTRATION:
-                    st.warning(f"⚠ Concentration : {r.nom} pèse {fmt(r.poids_pct, 0)} % des titres "
+                    st.warning(f"⚠️ Concentration : {r.nom} pèse {fmt(r.poids_pct, 0)} % des titres "
                                f"(seuil {SEUIL_CONCENTRATION:.0f} %).")
             hors_ligne = pos[pos["statut"] != "live"]
             if not hors_ligne.empty:
@@ -573,7 +771,7 @@ with tab_pf:
 
             # -- Une carte par ligne (lisible sur téléphone) ---------------- #
             for r in pos.sort_values("valeur", ascending=False).itertuples():
-                badge = "" if r.statut == "live" else f" ⚠ {r.statut}"
+                badge = "" if r.statut == "live" else f" ⚠️ {r.statut}"
                 jour = pastille(r.var_jour_pct, f"{fmt(r.var_jour_pct, 2, True)} % auj.")
                 total = pastille(r.perf_pct, f"{fmt(r.perf_pct, 1, True)} % total")
                 with st.container(border=True):

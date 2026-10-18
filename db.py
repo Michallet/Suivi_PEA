@@ -8,17 +8,8 @@ import pandas as pd
 import streamlit as st
 from supabase import create_client
 
-SCHEMA = {
-    "transactions": ["id", "date", "isin", "type", "quantite", "prix", "frais"],
-    "dividendes": ["id", "date", "isin", "montant"],
-    "versements": ["id", "date", "type", "montant", "libelle"],
-    "secteurs": ["isin", "secteur"],
-    "tickers": ["isin", "ticker", "nom", "dernier_prix", "dernier_prix_at"],
-    "snapshots": ["date", "valeur", "apports"],
-}
-ORDRE = {"transactions": ["date", "id"], "dividendes": ["date", "id"],
-         "versements": ["date", "id"], "snapshots": ["date"]}
-NUMERIQUES = ("quantite", "prix", "frais", "montant", "dernier_prix", "valeur", "apports")
+from schema import NUMERIQUES, ORDRE, SCHEMA  # noqa: E402
+
 PAGE = 1000  # limite par requête côté Supabase
 
 
@@ -60,9 +51,11 @@ def lire(table: str) -> pd.DataFrame:
     return df
 
 
-def inserer(table: str, rec: dict) -> None:
-    _client().table(table).insert({k: _clean(v) for k, v in rec.items()}).execute()
+def inserer(table: str, rec: dict) -> dict | None:
+    """Insère une ligne et la renvoie (avec son id)."""
+    res = _client().table(table).insert({k: _clean(v) for k, v in rec.items()}).execute()
     lire.clear()
+    return res.data[0] if res.data else None
 
 
 def modifier(table: str, id_: int, rec: dict) -> None:
@@ -104,3 +97,7 @@ def appliquer_modifs(table: str, avant: pd.DataFrame, apres: pd.DataFrame) -> tu
                 modifier(table, i, rec)
                 modifies += 1
     return ajoutes, modifies, len(a_supprimer)
+
+
+def rafraichir() -> None:
+    lire.clear()
