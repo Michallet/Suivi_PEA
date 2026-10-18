@@ -17,6 +17,10 @@ MODELE_DEFAUT = "gemini-3.6-flash"  # surchargeable via le secret GEMINI_MODEL (
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{modele}:generateContent"
 VERSION_PROMPT = "v1"
 MAX_APPELS_PAR_JOUR = 5
+MAX_CHAT_PAR_JOUR = 20
+MAX_TOURS_CHAT = 5          # filet de sécurité : le prompt demande des réponses courtes
+MAX_TOKENS_CHAT = 2048
+MAX_MOTS_REPONSE = 300  # filet de sécurité : le prompt demande quelques phrases
 MAX_MOTS_SYNTHESE = 20  # filet de sécurité : le prompt demande ~10 mots
 POINTS_MAX_PAR_CRITERE = 2
 MAX_MOTS_POINT = 12  # filet de sécurité : le prompt demande ~10 mots par avantage/inconvénient
@@ -367,3 +371,61 @@ def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90,
             if "refusée" in str(e) or "introuvable" in str(e) or "Quota" in str(e) or "Clé" in str(e):
                 break  # inutile de réessayer
     raise derniere
+
+
+# --------------------------------------------------------------------------- #
+# Chatbot : conversation libre avec le contexte du portefeuille en mémoire
+# --------------------------------------------------------------------------- #
+SYSTEME_CHAT = (
+    "Tu es un analyste qui répond aux questions d'un investisseur particulier français sur la "
+    "STRUCTURE de son PEA (actions et ETF européens éligibles).\n"
+    "Règles impératives :\n"
+    "- Tu n'es pas conseiller financier : aucune recommandation d'achat, de vente ou d'arbitrage, "
+    "aucune prévision de cours ni de rendement.\n"
+    "- Ne t'appuie que sur les informations communiquées dans cette conversation (structure du "
+    "portefeuille, analyses précédentes) : si une information te manque, dis-le au lieu d'inventer.\n"
+    "- Réponds en français, en quelques phrases concises et factuelles.\n\n"
+    "Confidentialité : tu ne reçois que des poids en % (aucun montant en euros)."
+)
+
+
+def discuter(contexte: str, historique: list, question: str, cle: str,
+             modele: str | None = None, timeout: int = 90) -> str:
+    """Répond à une question de chat. `historique` : [{"role": "user"|"model", "content": str}].
+
+    Le contexte du portefeuille (poids en %, dernière analyse IA) est injecté en instruction
+    systématique à chaque message : la conversation n'a pas besoin d'historique long.
+    """
+    modele = modele or MODELE_DEFAUT
+    contenus = ([{"role": m["role"], "parts": [{"text": m["content"]}]}
+                 for m in historique[-2 * MAX_TOURS_CHAT:]]
+                + [{"role": "user", "parts": [{"text": question}]}])
+    payload = {"systemInstruction": {"parts": [{"text": SYSTEME_CHAT + "\n\n" + contexte}]},
+               "contents": contenus,
+               "generationConfig": {"maxOutputTokens": MAX_TOKENS_CHAT,
+                                    "thinkingConfig": {"thinkingLevel": "low"}}}
+    try:
+        r = requests.post(URL.format(modele=modele), json=payload, timeout=timeout,
+                          headers={"x-goog-api-key": cle, "Content-Type": "application/json"})
+    except requests.Timeout:
+        raise ErreurIA("Délai dépassé : Gemini n'a pas répondu à temps. Réessayez.")
+    except requests.RequestException:
+        raise ErreurIA("Connexion à Gemini impossible. Réessayez plus tard.")
+    if r.status_code in (401, 403):
+        raise ErreurIA("Clé API Gemini refusée (vérifiez GEMINI_API_KEY).")
+    if r.status_code == 404:
+        raise ErreurIA(f"Modèle « {modele} » introuvable (vérifiez GEMINI_MODEL).")
+    if r.status_code == 429:
+        raise ErreurIA("Quota Gemini atteint. Réessayez plus tard.")
+    if r.status_code >= 500:
+        raise ErreurIA("Service Gemini momentanément indisponible. Réessayez.")
+    if r.status_code != 200:
+        raise ErreurIA(f"Requête refusée par Gemini ({r.status_code}) : {_message_erreur(r)}")
+    try:
+        parts = r.json()["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, TypeError, ValueError):
+        raise ErreurIA("Gemini n'a renvoyé aucune réponse exploitable (contenu bloqué ou vide).")
+    texte = "".join(x.get("text", "") for x in parts if not x.get("thought")).strip()
+    if not texte:
+        raise ErreurIA("Gemini n'a renvoyé aucune réponse exploitable (contenu bloqué ou vide).")
+    return _tronquer_mots(texte, MAX_MOTS_REPONSE)

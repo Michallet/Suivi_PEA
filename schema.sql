@@ -108,3 +108,14 @@ create table if not exists analyses_scen (
 );
 
 alter table analyses_scen enable row level security;
+
+-- =====================================================================================
+-- v5 : journal des messages du chatbot (quota journalier) — relançable sans risque
+-- =====================================================================================
+
+create table if not exists chat_log (
+  id      bigint generated always as identity primary key,
+  cree_le timestamptz not null default now()
+);
+
+alter table chat_log enable row level security;

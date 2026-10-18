@@ -82,6 +82,7 @@ def _tables() -> dict:
     ia = pd.DataFrame([(1, maintenant, "exemple fictif", "demo", llm.EXEMPLE)], columns=SCHEMA["analyses_ia"])
     ia_scen = pd.DataFrame([(1, 1, maintenant, "exemple fictif", "demo", llm.EXEMPLE_SCENARIO)],
                            columns=SCHEMA["analyses_scen"])
+    chat = pd.DataFrame(columns=SCHEMA["chat_log"])
 
     # Historique synthétique cohérent avec les positions (marche aléatoire qui finit au cours du jour)
     rng = np.random.RandomState(7)
@@ -96,7 +97,7 @@ def _tables() -> dict:
 
     tables = {"transactions": trans, "dividendes": div, "versements": vers, "tickers": tickers,
               "secteurs": secteurs, "watchlist": watch, "scenarios": scen, "scenario_trades": sc_tr,
-              "analyses_ia": ia, "analyses_scen": ia_scen, "snapshots": snaps}
+              "analyses_ia": ia, "analyses_scen": ia_scen, "chat_log": chat, "snapshots": snaps}
     return {k: _typer(v) for k, v in tables.items()}
 
 

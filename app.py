@@ -79,6 +79,13 @@ def pastille(v: float, texte: str) -> str:
     return f"<span style='color:{VERT if v >= 0 else ROUGE}'>{texte}</span>"
 
 
+def sans_parentheses(series: pd.Series) -> pd.Series:
+    """Noms épurés pour les axes : retrait de TOUS les groupes entre parenthèses
+    (souvent au milieu des noms d'ETF, ex. « Amundi PEA Monde (MSCI World) UCITS ETF »)."""
+    return (series.astype(str).str.replace(r"\s*\([^)]*\)", "", regex=True)
+            .str.replace(r"\s{2,}", " ", regex=True).str.strip())
+
+
 def flash(msg: str) -> None:
     """Message affiché (toast) après le prochain rechargement."""
     st.session_state["flash"] = msg
@@ -157,6 +164,7 @@ def lire_sur(table: str) -> pd.DataFrame:
 wl, scen = lire_sur("watchlist"), lire_sur("scenarios")
 scen_tr, analyses = lire_sur("scenario_trades"), lire_sur("analyses_ia")
 analyses_scen = lire_sur("analyses_scen")
+chat_log = lire_sur("chat_log")
 if tables_manquantes:
     st.warning("Tables manquantes : " + ", ".join(tables_manquantes)
                + ". Exécutez la version à jour de schema.sql dans Supabase.")
@@ -397,6 +405,72 @@ def bloc_ia_scenario(sid: int, pos_p: pd.DataFrame, cash_p: float,
             afficher_analyse(derniere["resultat"], quand, not a_jour, scenario=True)
 
 
+def contexte_chat(modele: str) -> str:
+    """Contexte injecté dans chaque message du chat : structure du PEA (poids en %)
+    + dernière analyse IA, si elle existe."""
+    per_isin = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
+    texte, _ = llm.construire_contexte(pos, s["cash"], per_isin, modele)
+    parties = [texte]
+    if not analyses.empty:
+        d = analyses.sort_values("id").iloc[-1]
+        notes = " ; ".join(f"{c['label']} {c['note']}/10" for c in d["resultat"]["criteres"])
+        parties.append(f"Dernière analyse IA de la structure : {notes}. "
+                       f"Conclusion : {d['resultat']['conclusion']}")
+    return "\n\n".join(parties)
+
+
+def bloc_chatbot() -> None:
+    """Chatbot : discussion libre sur le portefeuille, avec sa structure en mémoire."""
+    with st.container(border=True):
+        st.markdown("#### 💬 Discuter de mon portefeuille")
+        if not reel:
+            st.caption("Disponible après connexion (et avec `GEMINI_API_KEY` dans les secrets).")
+            return
+        if pos.empty:
+            st.caption("Aucune ligne dans le portefeuille.")
+            return
+        cle_api = auth.secret("GEMINI_API_KEY")
+        modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+        if not cle_api:
+            st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer le chat.")
+            return
+
+        if "chat_msgs" not in st.session_state:
+            st.session_state["chat_msgs"] = []
+        for m in st.session_state["chat_msgs"]:
+            with st.chat_message(m["role"]):
+                st.markdown(m["content"])
+
+        if st.session_state["chat_msgs"] and st.button("🧹 Effacer la conversation", key="chat_reset"):
+            st.session_state["chat_msgs"] = []
+            st.rerun()
+
+        if not chat_log.empty:
+            jours = (pd.to_datetime(chat_log["cree_le"], utc=True, errors="coerce")
+                     .dt.tz_convert(PARIS).dt.date)
+            limite = int((jours == maintenant().date()).sum()) >= llm.MAX_CHAT_PAR_JOUR
+        else:
+            limite = False
+        if limite:
+            st.caption(f"Limite de {llm.MAX_CHAT_PAR_JOUR} messages par jour atteinte.")
+            return
+
+        question = (st.chat_input("Posez une question sur votre portefeuille…") or "").strip()
+        if question:
+            try:
+                with st.spinner("Réponse en cours…"):
+                    rep = llm.discuter(contexte_chat(modele), st.session_state["chat_msgs"],
+                                       question, cle_api, modele)
+            except llm.ErreurIA as e:
+                st.error(str(e))
+            else:
+                st.session_state["chat_msgs"] = (st.session_state["chat_msgs"]
+                                                 + [{"role": "user", "content": question},
+                                                    {"role": "model", "content": rep}])[-12:]
+                store.inserer("chat_log", {})
+                st.rerun()
+
+
 # --------------------------------------------------------------------------- #
 # Onglet Watchlist
 # --------------------------------------------------------------------------- #
@@ -457,7 +531,7 @@ def onglet_watchlist() -> None:
 # --------------------------------------------------------------------------- #
 def graphique_compare(df: pd.DataFrame, cle: str) -> None:
     d = df.iloc[::-1].copy()  # le plus gros en haut
-    d[cle] = d[cle].astype(str).str.replace(r"\s*\([^)]*\)\s*$", "", regex=True)  # noms épurés
+    d[cle] = sans_parentheses(d[cle])  # noms épurés
     fig = go.Figure()
     fig.add_bar(y=d[cle], x=d["reel"], name="Actuel", orientation="h")
     fig.add_bar(y=d[cle], x=d["projete"], name="Projeté", orientation="h")
@@ -826,6 +900,8 @@ with tab_pf:
 
         bloc_ia()
 
+        bloc_chatbot()
+
         if s["cash"] < -0.01:
             st.warning("Cash négatif : il manque des versements dans le journal "
                        "(Saisie › Versement / retrait).")
@@ -868,14 +944,17 @@ with tab_pf:
 
             # -- Graphiques ------------------------------------------------- #
             st.subheader("Répartition")
-            fig = px.treemap(pos, path=[px.Constant("PEA"), "secteur", "nom"], values="valeur",
+            pos_fig = pos.assign(nom=sans_parentheses(pos["nom"]))
+            fig = px.treemap(pos_fig, path=[px.Constant("PEA"), "secteur", "nom"], values="valeur",
                              color="perf_pct", color_continuous_scale="RdYlGn",
                              color_continuous_midpoint=0)
             fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=340, coloraxis_showscale=False)
             st.plotly_chart(fig, config=PLOTLY)
 
             st.subheader("Contribution à la performance (€)")
-            contrib = pos.assign(contrib=pos["pv_latente"] + pos["dividendes"]).sort_values("contrib")
+            contrib = (pos.assign(contrib=pos["pv_latente"] + pos["dividendes"],
+                                  nom=sans_parentheses(pos["nom"]))
+                       .sort_values("contrib"))
             fig = px.bar(contrib, x="contrib", y="nom", orientation="h", color="contrib",
                          color_continuous_scale="RdYlGn", color_continuous_midpoint=0,
                          labels={"contrib": "PV latente + dividendes (€)", "nom": ""})
