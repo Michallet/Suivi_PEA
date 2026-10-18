@@ -4,4 +4,3 @@ numpy
 plotly>=5.20
 yfinance>=0.2.50
 supabase>=2.0
-auth
