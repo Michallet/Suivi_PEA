@@ -29,7 +29,7 @@ SEUIL_CONCENTRATION = 25.0  # % des titres au-delà duquel on alerte
 BENCHMARKS = {"MSCI World (CW8)": "CW8.PA", "CAC 40": "^FCHI", "Euro Stoxx 50": "^STOXX50E"}
 VERT, ROUGE = "#16a34a", "#dc2626"
 PARIS = ZoneInfo("Europe/Paris")
-PLOTLY = {"displayModeBar": False}
+PLOTLY = {"displayModeBar": False, "scrollZoom": False, "doubleClick": False}
 NOUVEL_ISIN = "➕ Nouvel ISIN…"
 LIBELLES_VERS = {"VERSEMENT": "Versement", "RETRAIT": "Retrait",
                  "PV_ANTERIEURE": "Plus-value antérieure réinvestie (hors apports)"}
@@ -156,6 +156,7 @@ def lire_sur(table: str) -> pd.DataFrame:
 
 wl, scen = lire_sur("watchlist"), lire_sur("scenarios")
 scen_tr, analyses = lire_sur("scenario_trades"), lire_sur("analyses_ia")
+analyses_scen = lire_sur("analyses_scen")
 if tables_manquantes:
     st.warning("Tables manquantes : " + ", ".join(tables_manquantes)
                + ". Exécutez la version à jour de schema.sql dans Supabase.")
@@ -267,7 +268,7 @@ def choisir_isin(label: str, options: list[str], cle: str, nouveau: bool = True)
 # --------------------------------------------------------------------------- #
 # Analyse IA
 # --------------------------------------------------------------------------- #
-def afficher_analyse(res: dict, quand, perime: bool) -> None:
+def afficher_analyse(res: dict, quand, perime: bool, scenario: bool = False) -> None:
     c1, c2 = st.columns([1, 2])
     c1.metric("Note globale", f"{llm.note_globale(res):.1f}/10")
     c2.markdown(f"_{res['conclusion']}_")
@@ -275,7 +276,13 @@ def afficher_analyse(res: dict, quand, perime: bool) -> None:
         st.markdown(f"**{c['label']}** · {c['note']}/10")
         st.progress(c["note"] / 10)
         st.caption(c["synthese"])
-    suite = " · ⚠️ portefeuille modifié depuis" if perime else ""
+        if scenario:  # avantages / inconvénients du scénario par rapport à l'actuel
+            for a in c.get("avantages", []):
+                st.markdown(f"🟢 {a}")
+            for i in c.get("inconvenients", []):
+                st.markdown(f"🔴 {i}")
+    suite = " · ⚠️ scénario modifié depuis" if (perime and scenario) else \
+        (" · ⚠️ portefeuille modifié depuis" if perime else "")
     st.caption(f"Analysé le {quand:%d/%m/%Y à %H:%M} · {res.get('modele', '')}{suite}")
     st.caption(llm.AVERTISSEMENT)
 
@@ -328,6 +335,66 @@ def bloc_ia() -> None:
         if derniere is not None:
             quand = pd.to_datetime(derniere["cree_le"], utc=True).tz_convert(PARIS)
             afficher_analyse(derniere["resultat"], quand, not a_jour)
+
+
+def bloc_ia_scenario(sid: int, pos_p: pd.DataFrame, cash_p: float,
+                     operations: str, versement: float) -> None:
+    """Analyse IA du scénario : note les 4 critères du projeté + avantages/inconvénients vs actuel."""
+    with st.container(border=True):
+        st.markdown("#### ✨ Analyse IA du scénario")
+        if not reel:
+            st.button("✨ Analyser ce scénario", disabled=True, key="ias_btn_demo")
+            st.caption("Exemple fictif (aucun appel IA en mode démo).")
+            afficher_analyse(llm.EXEMPLE_SCENARIO, maintenant(), False, scenario=True)
+            return
+        if pos_p.empty:
+            st.caption("Aucune ligne à analyser.")
+            return
+
+        sel = analyses_scen[analyses_scen["scenario_id"] == sid]
+        derniere = None if sel.empty else sel.sort_values("id").iloc[-1]
+
+        cle_api = auth.secret("GEMINI_API_KEY")
+        modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+        per_p = {i: fonds.get(t, {}).get("per") for i, t in zip(pos_p["isin"], pos_p["ticker"])}
+        per_a = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
+        texte, empreinte = llm.construire_contexte_scenario(
+            pos_p, cash_p, per_p, pos, s["cash"], per_a, modele, sid, operations, versement)
+
+        # quota commun : analyses du portefeuille + des scénarios
+        n_auj = 0
+        for table in (analyses, analyses_scen):
+            if not table.empty:
+                jours = (pd.to_datetime(table["cree_le"], utc=True, errors="coerce")
+                         .dt.tz_convert(PARIS).dt.date)
+                n_auj += int((jours == maintenant().date()).sum())
+        limite = n_auj >= llm.MAX_APPELS_PAR_JOUR
+        a_jour = derniere is not None and derniere["empreinte"] == empreinte
+
+        label = "✨ Relancer l'analyse" if a_jour else "✨ Analyser ce scénario"
+        clic = st.button(label, key=f"ias_btn_{sid}", disabled=(not cle_api) or limite)
+        if not cle_api:
+            st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse.")
+        elif limite:
+            st.caption(f"Limite de {llm.MAX_APPELS_PAR_JOUR} analyses par jour atteinte.")
+        else:
+            st.caption("Envoie à Gemini uniquement les poids en % (aucun montant en €).")
+
+        if clic:
+            try:
+                with st.spinner("Analyse en cours…"):
+                    res = llm.analyser(texte, cle_api, modele, scenario=True)
+            except llm.ErreurIA as e:
+                st.error(str(e))
+            else:
+                store.inserer("analyses_scen", {"scenario_id": sid, "modele": modele,
+                                                "empreinte": empreinte, "resultat": res})
+                flash("Analyse du scénario enregistrée ✨")
+                st.rerun()
+
+        if derniere is not None:
+            quand = pd.to_datetime(derniere["cree_le"], utc=True).tz_convert(PARIS)
+            afficher_analyse(derniere["resultat"], quand, not a_jour, scenario=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -389,12 +456,15 @@ def onglet_watchlist() -> None:
 # Onglet Projet (scénarios)
 # --------------------------------------------------------------------------- #
 def graphique_compare(df: pd.DataFrame, cle: str) -> None:
-    d = df.iloc[::-1]  # le plus gros en haut
+    d = df.iloc[::-1].copy()  # le plus gros en haut
+    d[cle] = d[cle].astype(str).str.replace(r"\s*\([^)]*\)\s*$", "", regex=True)  # noms épurés
     fig = go.Figure()
     fig.add_bar(y=d[cle], x=d["reel"], name="Actuel", orientation="h")
     fig.add_bar(y=d[cle], x=d["projete"], name="Projeté", orientation="h")
     fig.update_layout(barmode="group", margin=dict(l=0, r=0, t=10, b=0), height=max(240, 52 * len(d) + 70),
                       legend=dict(orientation="h", y=-0.12), xaxis_title="% du PEA")
+    fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
+    fig.update_yaxes(fixedrange=True)
     st.plotly_chart(fig, config=PLOTLY)
 
 
@@ -530,6 +600,8 @@ def onglet_projet() -> None:
         tableau = par_ligne.rename(columns={"label": "Ligne", "reel": "Actuel %", "projete": "Projeté %",
                                             "ecart": "Écart"}).round(1)
         st.dataframe(tableau, hide_index=True)
+    ops = "; ".join(f"{r.type} {r.quantite:g} × {nom_de(tmap, r.isin)}" for r in sim.itertuples())
+    bloc_ia_scenario(sid, pos_p, cash_p, ops, versement)
     st.caption("Simulation de répartition uniquement : aucune prévision de rendement.")
 
 
@@ -809,6 +881,8 @@ with tab_pf:
                          labels={"contrib": "PV latente + dividendes (€)", "nom": ""})
             fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=max(220, 44 * len(contrib)),
                               coloraxis_showscale=False)
+            fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
+            fig.update_yaxes(fixedrange=True)
             st.plotly_chart(fig, config=PLOTLY)
 
         if not ventes.empty or not div.empty:
@@ -835,6 +909,8 @@ with tab_hist:
                             line=dict(shape="hv", dash="dot"))
             fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=300,
                               legend=dict(orientation="h", y=-0.15))
+            fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
+            fig.update_yaxes(fixedrange=True)
             st.plotly_chart(fig, config=PLOTLY)
 
             st.subheader("Performance vs indice")
@@ -857,6 +933,8 @@ with tab_hist:
                 fig.add_scatter(x=twr["date"], y=bench.to_numpy(), name=choix, mode="lines")
             fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=300,
                               legend=dict(orientation="h", y=-0.15))
+            fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
+            fig.update_yaxes(fixedrange=True)
             st.plotly_chart(fig, config=PLOTLY)
             resume = f"Mon PEA : **{fmt(twr['twr'].iloc[-1] - 100, 2, True)} %**"
             if bench is not None:

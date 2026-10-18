@@ -18,6 +18,8 @@ URL = "https://generativelanguage.googleapis.com/v1beta/models/{modele}:generate
 VERSION_PROMPT = "v1"
 MAX_APPELS_PAR_JOUR = 5
 MAX_MOTS_SYNTHESE = 20  # filet de sécurité : le prompt demande ~10 mots
+POINTS_MAX_PAR_CRITERE = 2
+MAX_MOTS_POINT = 12  # filet de sécurité : le prompt demande ~10 mots par avantage/inconvénient
 
 AVERTISSEMENT = ("Analyse générée par une IA à partir de la structure de votre PEA, à titre "
                  "informatif. Ce n'est pas un conseil en investissement.")
@@ -77,6 +79,40 @@ SCHEMA_JSON = {
     "required": ["criteres", "conclusion"],
 }
 
+# Variante « scénario » : mêmes critères + avantages/inconvénients par rapport au portefeuille actuel
+SYSTEME_SCENARIO = (
+    SYSTEME + "\n\n"
+    "Cas particulier : tu reçois DEUX structures, l'ACTUELLE (référence) et la PROJETÉE (scénario). "
+    "Tu évalues les 4 critères sur la structure PROJETÉE.\n"
+    "- Pour chaque critère, compare le projeté à l'actuel : liste au maximum "
+    f"{POINTS_MAX_PAR_CRITERE} avantages et {POINTS_MAX_PAR_CRITERE} inconvénients du scénario, "
+    "chacun en environ 10 mots, factuel, sans recommandation d'achat, de vente ou d'arbitrage.\n"
+    "- Si le scénario ne change rien sur un critère, écris « Aucun changement » au lieu d'inventer.\n"
+    "- Réponds uniquement par un objet JSON conforme au schéma demandé."
+)
+
+SCHEMA_JSON_SCENARIO = {
+    "type": "object",
+    "properties": {
+        "criteres": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "cle": {"type": "string", "enum": CLES},
+                    "note": {"type": "integer"},
+                    "synthese": {"type": "string"},
+                    "avantages": {"type": "array", "items": {"type": "string"}},
+                    "inconvenients": {"type": "array", "items": {"type": "string"}},
+                },
+                "required": ["cle", "note", "synthese", "avantages", "inconvenients"],
+            },
+        },
+        "conclusion": {"type": "string"},
+    },
+    "required": ["criteres", "conclusion"],
+}
+
 # Exemple statique affiché en mode démo (aucun appel API)
 EXEMPLE = {
     "criteres": [
@@ -93,6 +129,30 @@ EXEMPLE = {
     "modele": "exemple fictif",
 }
 
+# Exemple statique de l'analyse comparative (onglet Projet, mode démo)
+EXEMPLE_SCENARIO = {
+    "criteres": [
+        {"cle": "diversification_sectorielle", "label": "Diversification sectorielle", "note": 8,
+         "synthese": "La santé renforcée réduit la domination du luxe.",
+         "avantages": ["Poids du luxe ramené sous les 20 %", "Santé défensive désormais 2e ligne"],
+         "inconvenients": ["Exposition industrielle toujours élevée"]},
+        {"cle": "capex", "label": "CAPEX", "note": 6,
+         "synthese": "Peu de changement : énergie et industrie toujours présentes.",
+         "avantages": ["Recul relatif de l'énergie dans le total"],
+         "inconvenients": ["Semi-conducteurs toujours en poids fort"]},
+        {"cle": "geographique", "label": "Diversification géographique", "note": 8,
+         "synthese": "Inchangée : cœur européen complété par les ETF monde.",
+         "avantages": ["Aucun changement"],
+         "inconvenients": ["Aucun changement"]},
+        {"cle": "croissance_rendement", "label": "Croissance vs Rendement", "note": 7,
+         "synthese": "Léger basculement vers le rendement (santé, dividendes).",
+         "avantages": ["Rendement du portefeuille un peu plus régulier"],
+         "inconvenients": ["Moins d'exposition aux valeurs de croissance"]},
+    ],
+    "conclusion": "Scénario prudent : diversifie sans bouleverser la structure actuelle.",
+    "modele": "exemple fictif",
+}
+
 
 class ErreurIA(Exception):
     """Erreur affichable telle quelle à l'utilisateur (ne contient jamais la clé API)."""
@@ -101,8 +161,8 @@ class ErreurIA(Exception):
 # --------------------------------------------------------------------------- #
 # Contexte envoyé au modèle
 # --------------------------------------------------------------------------- #
-def construire_contexte(pos: pd.DataFrame, cash: float, per_par_isin: dict, modele: str):
-    """Retourne (texte du prompt, empreinte). Poids en % uniquement, aucun montant en euros."""
+def _lignes_poids(pos: pd.DataFrame, cash: float, per_par_isin: dict):
+    """Lignes de contexte (poids en % uniquement) + empreinte de composition."""
     total = (float(pos["valeur"].sum()) if not pos.empty else 0.0) + max(float(cash), 0.0)
     if total <= 0:
         raise ErreurIA("Portefeuille vide : rien à analyser.")
@@ -116,6 +176,12 @@ def construire_contexte(pos: pd.DataFrame, cash: float, per_par_isin: dict, mode
             f"performance latente : {r.perf_pct:+.1f} %")
         cles.append((r.isin, round(poids)))
     cash_pct = max(float(cash), 0.0) / total * 100
+    return lignes, cles, cash_pct
+
+
+def construire_contexte(pos: pd.DataFrame, cash: float, per_par_isin: dict, modele: str):
+    """Retourne (texte du prompt, empreinte). Poids en % uniquement, aucun montant en euros."""
+    lignes, cles, cash_pct = _lignes_poids(pos, cash, per_par_isin)
     texte = (
         "Portefeuille PEA d'un investisseur particulier français.\n"
         "Les poids sont en % de la valeur totale du PEA (cash inclus). Aucun montant en euros n'est communiqué.\n\n"
@@ -123,6 +189,33 @@ def construire_contexte(pos: pd.DataFrame, cash: float, per_par_isin: dict, mode
         + "\n".join(lignes) + "\n\nÉvalue les 4 critères."
     )
     brut = json.dumps([VERSION_PROMPT, modele, sorted(cles), round(cash_pct)], sort_keys=True)
+    return texte, hashlib.sha256(brut.encode()).hexdigest()[:16]
+
+
+def construire_contexte_scenario(pos_p: pd.DataFrame, cash_p: float, per_p: dict,
+                                 pos: pd.DataFrame, cash: float, per: dict, modele: str,
+                                 scenario_id, operations: str, versement: float):
+    """Retourne (texte du prompt, empreinte) : structure PROJETÉE à évaluer, ACTUELLE en référence.
+
+    `operations` : résumé textuel des opérations fictives (jamais de montants en €).
+    """
+    lignes_p, cles_p, cash_p_pct = _lignes_poids(pos_p, cash_p, per_p)
+    lignes_a, cles_a, cash_a_pct = _lignes_poids(pos, cash, per)
+    texte = (
+        "Portefeuille PEA d'un investisseur particulier français.\n"
+        "Les poids sont en % de la valeur totale du PEA (cash inclus). Aucun montant en euros n'est communiqué.\n\n"
+        "STRUCTURE ACTUELLE (référence) :\n"
+        f"Cash : {cash_a_pct:.1f} %\nLignes (poids décroissant) :\n" + "\n".join(lignes_a) + "\n\n"
+        "STRUCTURE PROJETÉE (scénario à évaluer) :\n"
+        f"Cash : {cash_p_pct:.1f} %\nLignes (poids décroissant) :\n" + "\n".join(lignes_p) + "\n\n"
+        f"Opérations fictives du scénario : {operations or 'aucune'}"
+        + (f" ; versement fictif : {versement:.0f} €" if versement else "") + ".\n\n"
+        "Évalue les 4 critères sur la structure PROJETÉE, puis donne pour chaque critère "
+        "les avantages et les inconvénients du scénario par rapport à l'actuelle."
+    )
+    brut = json.dumps([VERSION_PROMPT, modele, "scenario", int(scenario_id), sorted(cles_p),
+                       round(cash_p_pct), sorted(cles_a), round(cash_a_pct),
+                       str(operations), round(float(versement or 0), 2)], sort_keys=True)
     return texte, hashlib.sha256(brut.encode()).hexdigest()[:16]
 
 
@@ -134,8 +227,19 @@ def _tronquer_mots(texte: str, n: int) -> str:
     return " ".join(mots) if len(mots) <= n else " ".join(mots[:n]).rstrip(",;:") + "…"
 
 
-def valider_resultat(obj) -> dict:
-    """Exige les 4 critères exactement une fois ; borne les notes à 0-10 ; limite la longueur."""
+def _points(liste) -> list:
+    """Normalise une liste d'avantages/inconvénients : 2 max, ~12 mots chacun."""
+    if not isinstance(liste, list):
+        return []
+    return [_tronquer_mots(x, MAX_MOTS_POINT) for x in liste
+            if str(x or "").strip()][:POINTS_MAX_PAR_CRITERE]
+
+
+def valider_resultat(obj, comparer: bool = False) -> dict:
+    """Exige les 4 critères exactement une fois ; borne les notes à 0-10 ; limite la longueur.
+
+    Avec `comparer=True`, exige aussi avantages/inconvenients (analyse de scénario).
+    """
     if not isinstance(obj, dict) or not isinstance(obj.get("criteres"), list):
         raise ErreurIA("Réponse de l'IA inattendue (structure).")
     par_cle = {}
@@ -145,9 +249,13 @@ def valider_resultat(obj) -> dict:
                 note = int(round(float(c.get("note"))))
             except (TypeError, ValueError):
                 raise ErreurIA("Réponse de l'IA inattendue (note invalide).")
-            par_cle[c["cle"]] = {"cle": c["cle"], "label": LIBELLES[c["cle"]],
-                                 "note": max(0, min(10, note)),
-                                 "synthese": _tronquer_mots(c.get("synthese", ""), MAX_MOTS_SYNTHESE)}
+            critere = {"cle": c["cle"], "label": LIBELLES[c["cle"]],
+                       "note": max(0, min(10, note)),
+                       "synthese": _tronquer_mots(c.get("synthese", ""), MAX_MOTS_SYNTHESE)}
+            if comparer:
+                critere["avantages"] = _points(c.get("avantages"))
+                critere["inconvenients"] = _points(c.get("inconvenients"))
+            par_cle[c["cle"]] = critere
     manquants = [k for k in CLES if k not in par_cle]
     if manquants:
         raise ErreurIA("Réponse de l'IA incomplète (critères manquants : " + ", ".join(manquants) + ").")
@@ -183,7 +291,7 @@ def _en_majuscules(schema):
     return schema
 
 
-def _payload(texte: str, variante: str) -> dict:
+def _payload(texte: str, variante: str, schema: dict) -> dict:
     config = {
         "responseMimeType": "application/json",
         # Pas de temperature/top_p/top_k : ignorés (puis refusés) par les modèles Gemini 3.x
@@ -191,10 +299,11 @@ def _payload(texte: str, variante: str) -> dict:
         "maxOutputTokens": 4096,  # la réflexion est comptée dans la sortie
     }
     if variante == "json_schema":
-        config["responseJsonSchema"] = SCHEMA_JSON
+        config["responseJsonSchema"] = schema
     else:
-        config["responseSchema"] = _en_majuscules(SCHEMA_JSON)
-    return {"systemInstruction": {"parts": [{"text": SYSTEME}]},
+        config["responseSchema"] = _en_majuscules(schema)
+    systeme = SYSTEME_SCENARIO if schema is SCHEMA_JSON_SCENARIO else SYSTEME
+    return {"systemInstruction": {"parts": [{"text": systeme}]},
             "contents": [{"role": "user", "parts": [{"text": texte}]}],
             "generationConfig": config}
 
@@ -216,10 +325,11 @@ def _message_erreur(r) -> str:
         return ""
 
 
-def _generer(texte: str, cle: str, modele: str, timeout: int) -> str:
-    r = _post(_payload(texte, "json_schema"), cle, modele, timeout)
+def _generer(texte: str, cle: str, modele: str, timeout: int,
+             schema: dict = SCHEMA_JSON) -> str:
+    r = _post(_payload(texte, "json_schema", schema), cle, modele, timeout)
     if r.status_code == 400 and "schema" in _message_erreur(r).lower():
-        r = _post(_payload(texte, "response_schema"), cle, modele, timeout)  # variante OpenAPI
+        r = _post(_payload(texte, "response_schema", schema), cle, modele, timeout)  # variante OpenAPI
     if r.status_code in (401, 403):
         raise ErreurIA("Clé API Gemini refusée (vérifiez GEMINI_API_KEY).")
     if r.status_code == 404:
@@ -237,13 +347,19 @@ def _generer(texte: str, cle: str, modele: str, timeout: int) -> str:
     return "".join(p.get("text", "") for p in parts if not p.get("thought"))
 
 
-def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90) -> dict:
-    """Un appel (un seul nouvel essai si la réponse est invalide). Lève ErreurIA."""
+def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90,
+             scenario: bool = False) -> dict:
+    """Un appel (un seul nouvel essai si la réponse est invalide). Lève ErreurIA.
+
+    Avec `scenario=True` : schéma étendu (avantages/inconvénients) et prompt comparatif.
+    """
     modele = modele or MODELE_DEFAUT
+    schema = SCHEMA_JSON_SCENARIO if scenario else SCHEMA_JSON
     derniere = None
     for _ in range(2):
         try:
-            res = valider_resultat(_parser_json(_generer(texte, cle, modele, timeout)))
+            res = valider_resultat(_parser_json(_generer(texte, cle, modele, timeout, schema)),
+                                   comparer=scenario)
             res["modele"] = modele
             return res
         except ErreurIA as e:

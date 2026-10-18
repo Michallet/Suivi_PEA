@@ -80,6 +80,8 @@ def _tables() -> dict:
                           (2, 1, "NL0010273215", "VENTE", 1.0, TITRES["NL0010273215"][3], maintenant)],
                          columns=SCHEMA["scenario_trades"])
     ia = pd.DataFrame([(1, maintenant, "exemple fictif", "demo", llm.EXEMPLE)], columns=SCHEMA["analyses_ia"])
+    ia_scen = pd.DataFrame([(1, 1, maintenant, "exemple fictif", "demo", llm.EXEMPLE_SCENARIO)],
+                           columns=SCHEMA["analyses_scen"])
 
     # Historique synthétique cohérent avec les positions (marche aléatoire qui finit au cours du jour)
     rng = np.random.RandomState(7)
@@ -94,7 +96,7 @@ def _tables() -> dict:
 
     tables = {"transactions": trans, "dividendes": div, "versements": vers, "tickers": tickers,
               "secteurs": secteurs, "watchlist": watch, "scenarios": scen, "scenario_trades": sc_tr,
-              "analyses_ia": ia, "snapshots": snaps}
+              "analyses_ia": ia, "analyses_scen": ia_scen, "snapshots": snaps}
     return {k: _typer(v) for k, v in tables.items()}
 
 
@@ -155,6 +157,8 @@ class DemoStore:
         if table == "scenarios":  # cascade, comme la base
             tr = self.t["scenario_trades"]
             self.t["scenario_trades"] = tr[tr["scenario_id"] != valeur].reset_index(drop=True)
+            ans = self.t["analyses_scen"]
+            self.t["analyses_scen"] = ans[ans["scenario_id"] != valeur].reset_index(drop=True)
 
     def upsert(self, table: str, recs: list[dict], conflit: str) -> None:
         for rec in recs:

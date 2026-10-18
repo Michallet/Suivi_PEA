@@ -10,10 +10,11 @@ SCHEMA = {
     "scenarios": ["id", "nom", "versement", "cree_le"],
     "scenario_trades": ["id", "scenario_id", "isin", "type", "quantite", "prix", "cree_le"],
     "analyses_ia": ["id", "cree_le", "modele", "empreinte", "resultat"],
+    "analyses_scen": ["id", "scenario_id", "cree_le", "modele", "empreinte", "resultat"],
 }
 ORDRE = {
     "transactions": ["date", "id"], "dividendes": ["date", "id"], "versements": ["date", "id"],
     "snapshots": ["date"], "watchlist": ["ajoute_le"], "scenarios": ["id"],
-    "scenario_trades": ["id"], "analyses_ia": ["id"],
+    "scenario_trades": ["id"], "analyses_ia": ["id"], "analyses_scen": ["scenario_id", "id"],
 }
 NUMERIQUES = ("quantite", "prix", "frais", "montant", "dernier_prix", "valeur", "apports", "versement")

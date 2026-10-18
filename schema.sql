@@ -93,3 +93,18 @@ alter table watchlist       enable row level security;
 alter table scenarios       enable row level security;
 alter table scenario_trades enable row level security;
 alter table analyses_ia     enable row level security;
+
+-- =====================================================================================
+-- v4 : analyses IA des scénarios (onglet Projet) — relançable sans risque
+-- =====================================================================================
+
+create table if not exists analyses_scen (
+  id          bigint generated always as identity primary key,
+  scenario_id bigint  not null references scenarios(id) on delete cascade,
+  cree_le     timestamptz not null default now(),
+  modele      text,
+  empreinte   text  not null,   -- signature du scénario + des deux compositions analysées
+  resultat    jsonb not null
+);
+
+alter table analyses_scen enable row level security;
