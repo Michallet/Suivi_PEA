@@ -981,14 +981,54 @@ with tab_pf:
                         ]
                         st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
 
+            # -- KPIs étendus --------------------------------------------- #
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                max_concentration = pos["poids_pct"].max() if not pos.empty else 0.0
+                st.metric("Concentration max", f"{fmt(max_concentration, 0)} %")
+            with col2:
+                n_lignes = len(pos)
+                st.metric("Lignes actives", n_lignes)
+            with col3:
+                total_dividendes = pos["dividendes"].sum() if not pos.empty else 0.0
+                rendement_div = (total_dividendes / s["valeur_totale"] * 100) if s["valeur_totale"] > 0 else 0.0
+                st.metric("Rendement dividendes", f"{fmt(rendement_div, 1)} %",
+                         f"{fmt(total_dividendes)} €")
+
             # -- Graphiques ------------------------------------------------- #
             st.subheader("Répartition")
+            
+            if not pos.empty:
+                secteur_data = pos.groupby("secteur")["valeur"].sum().reset_index()
+                if len(secteur_data) > 0:
+                    fig_pie = px.pie(secteur_data, values="valeur", names="secteur",
+                                     title="Par secteur", hole=0.3)
+                    fig_pie.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=250,
+                                          showlegend=True, legend=dict(orientation="h", y=-0.1))
+                    fig_pie.update_traces(textposition="inside", textinfo="percent+label")
+                    st.plotly_chart(fig_pie, config=PLOTLY)
+            
             pos_fig = pos.assign(nom=sans_parentheses(pos["nom"]))
             fig = px.treemap(pos_fig, path=[px.Constant("PEA"), "secteur", "nom"], values="valeur",
                              color="perf_pct", color_continuous_scale="RdYlGn",
                              color_continuous_midpoint=0)
             fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=340, coloraxis_showscale=False)
             st.plotly_chart(fig, config=PLOTLY)
+
+            st.subheader("Performance latente par ligne")
+            perf_data = (pos.assign(nom=sans_parentheses(pos["nom"]),
+                                    perf_pct=pos["perf_pct"])
+                        .sort_values("perf_pct", ascending=False))
+            fig_perf = px.bar(perf_data, x="perf_pct", y="nom", orientation="h",
+                             color="perf_pct", color_continuous_scale="RdYlGn",
+                             color_continuous_midpoint=0,
+                             labels={"perf_pct": "Performance %", "nom": ""},
+                             title="Performance latente (vs PRM)")
+            fig_perf.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=max(220, 44 * len(perf_data)),
+                                  coloraxis_showscale=False)
+            fig_perf.update_xaxes(fixedrange=True)
+            fig_perf.update_yaxes(fixedrange=True)
+            st.plotly_chart(fig_perf, config=PLOTLY)
 
             st.subheader("Contribution à la performance (€)")
             contrib = (pos.assign(contrib=pos["pv_latente"] + pos["dividendes"],
@@ -999,7 +1039,7 @@ with tab_pf:
                          labels={"contrib": "PV latente + dividendes (€)", "nom": ""})
             fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=max(220, 44 * len(contrib)),
                               coloraxis_showscale=False)
-            fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
+            fig.update_xaxes(fixedrange=True)
             fig.update_yaxes(fixedrange=True)
             st.plotly_chart(fig, config=PLOTLY)
 
