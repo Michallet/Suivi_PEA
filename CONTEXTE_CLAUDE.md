@@ -1,5 +1,5 @@
 # CONTEXTE.md — Suivi PEA (pour reprise avec Claude)
-**Dernière mise à jour** : 20/10/2026 · **Version du code** : v6 + audit du 20/10 · **Langue** : français
+**Dernière mise à jour** : 20/10/2026 · **Version du code** : v7 (audit + fondamentaux/liens partout) · **Langue** : français
 
 ---
 
@@ -108,6 +108,19 @@ Tables Supabase :
 **Non vérifié** : rendu Streamlit réel, DuckDuckGo en direct, Yahoo/Supabase (pas de réseau ni de Streamlit dans l'environnement d'audit).
 **Alerte confidentialité** : `seed_pea.sql` et `CONTEXTE.md` §4 contiennent les positions/PRM/montants réels dans un dépôt public (contraire au §2) : les retirer **et** tenir compte que l'historique Git les conserve.
 Lancer : `pip install -r requirements-dev.txt && pytest -q`.
+
+---
+
+## 5️⃣ter **v7 (20/10/2026) — fondamentaux et liens partout**
+
+- **Fiche commune** (`app.py` : `carte_ligne`, `lignes_fondamentaux`) utilisée par **Portefeuille**, **Projet** (nouveau bloc « Lignes du scénario ») et **Watchlist** : mêmes lignes, valeurs absentes omises.
+  Ordre : PER · PER prévisionnel · CA · Bénéfice net · EBITDA · Capitalisation · Valeur d'entreprise · EV/EBITDA · Actifs sous gestion · Frais annuels (+ quantité/PRM/+-value/dividendes hors watchlist).
+- **URL de publication = par ISIN dans `tickers.url`** (plus dans `watchlist.url`, encore lue en repli). Lien « 📄 Publication » visible sur chaque carte ; champ modifiable (💾 / 🔍) dans « Détails » de chaque carte, y compris pour les lignes déjà en watchlist ou détenues.
+- **SQL à exécuter une fois** : `alter table tickers add column if not exists url text;` (déjà ajouté à `schema.sql`).
+- Bug corrigé : `**prix**` affiché tel quel dans la watchlist (Markdown dans un bloc HTML) ; bouton ✖ qui passait sous la carte sur mobile (déplacé dans « Détails »).
+- `db.modifier(table, id_, rec, cle="id")` : UPDATE par clé (ne pas utiliser `upsert` partiel sur `tickers` : `ticker` est NOT NULL).
+- Nouveaux champs Yahoo : `per_prev` (forwardPE), `ev` (enterpriseValue). Cache fondamentaux 6 h : reboot ou 🔄 pour les voir.
+- Tests : `pytest -q` (9) et `python tests/e2e/parcours.py` (faux Streamlit : démo + connecté simulé).
 
 ---
 

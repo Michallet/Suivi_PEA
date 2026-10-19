@@ -58,8 +58,9 @@ def inserer(table: str, rec: dict) -> dict | None:
     return res.data[0] if res.data else None
 
 
-def modifier(table: str, id_: int, rec: dict) -> None:
-    _client().table(table).update({k: _clean(v) for k, v in rec.items()}).eq("id", id_).execute()
+def modifier(table: str, id_, rec: dict, cle: str = "id") -> None:
+    """UPDATE ... WHERE cle = id_ (par défaut la clé `id` ; `cle="isin"` pour tickers/watchlist)."""
+    _client().table(table).update({k: _clean(v) for k, v in rec.items()}).eq(cle, id_).execute()
     lire.clear()
 
 

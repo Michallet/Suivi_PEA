@@ -71,7 +71,7 @@ def _tables() -> dict:
                          (2, auj - pd.Timedelta(days=125), "VERSEMENT", 2000.0, None),
                          (3, auj - pd.Timedelta(days=300), "PV_ANTERIEURE", 250.0, "Gains antérieurs")],
                         columns=SCHEMA["versements"])
-    tickers = pd.DataFrame([(isin, v[0], v[1], v[3], maintenant) for isin, v in TITRES.items()],
+    tickers = pd.DataFrame([(isin, v[0], v[1], v[3], maintenant, None) for isin, v in TITRES.items()],
                            columns=SCHEMA["tickers"])
     secteurs = pd.DataFrame([(isin, v[2]) for isin, v in TITRES.items() if v[2]], columns=SCHEMA["secteurs"])
     watch = pd.DataFrame([(isin, note, None, maintenant) for isin, note in WATCHLIST],
@@ -120,8 +120,20 @@ def cours_batch(tickers: tuple) -> tuple[dict, datetime]:
 
 
 def fondamentaux_batch(tickers: tuple) -> dict:
-    return {t: {"per": _PAR_TICKER[t][5], "ca": _PAR_TICKER[t][6], "capi": _PAR_TICKER[t][7],
-                "secteur_yahoo": _PAR_TICKER[t][8]} for t in tickers if t in _PAR_TICKER}
+    """Fondamentaux fictifs (ordres de grandeur plausibles, uniquement pour illustrer l'affichage)."""
+    out = {}
+    for t in tickers:
+        if t not in _PAR_TICKER:
+            continue
+        _, _, _, _, _, per, ca, capi, sect = _PAR_TICKER[t]
+        f = {"per": per, "ca": ca, "capi": capi, "secteur_yahoo": sect}
+        if ca and capi:  # action
+            f.update(per_prev=per * 0.93 if per else None, net_income=ca * 0.12, ebitda=ca * 0.22,
+                     ev=capi * 1.1, ev_ebitda=capi * 1.1 / (ca * 0.22))
+        else:            # ETF
+            f.update(net_assets=1.5e9, expense_ratio=0.2)
+        out[t] = f
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -154,10 +166,10 @@ class DemoStore:
                                          ignore_index=True))
         return row
 
-    def modifier(self, table: str, id_, rec: dict) -> None:
+    def modifier(self, table: str, id_, rec: dict, cle: str = "id") -> None:
         df = self.t[table]
         for k, v in rec.items():
-            df.loc[df["id"] == id_, k] = v
+            df.loc[df[cle] == id_, k] = v
 
     def supprimer(self, table: str, valeur, cle: str = "id") -> None:
         self.t[table] = self.t[table][self.t[table][cle] != valeur].reset_index(drop=True)

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from urllib.parse import parse_qs, quote_plus, urlparse
 from zoneinfo import ZoneInfo
 
 import numpy as np
@@ -41,48 +42,64 @@ def chercher_ticker(isin: str) -> dict | None:
             "nom": choix.get("shortname") or choix.get("longname") or choix["symbol"]}
 
 
-def chercher_url_publication(nom: str) -> str | None:
-    """Recherche Web pour trouver l'URL du rapport financier d'une entreprise.
-    Retourne le premier résultat de recherche Google pour '{nom} Financial report'.
-    """
-    try:
-        import requests
-        from urllib.parse import quote
-        
-        # Construire l'URL de recherche Google
-        query = f"{nom} Financial report"
-        encoded_query = quote(query)
-        google_url = f"https://www.google.com/search?q={encoded_query}"
-        
-        # Requête avec headers pour éviter le blocage
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        
-        response = requests.get(google_url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            # Extraire le premier lien organique de la page de résultats
-            # Note: Google peut bloquer, donc on utilise une approche simple
-            # En production, il faudrait utiliser l'API Google Custom Search
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(response.text, 'html.parser')
-            
-            # Trouver les liens dans les résultats de recherche
-            for link in soup.find_all('a'):
-                href = link.get('href')
-                if href and href.startswith('/url?q='):
-                    # Extraire l'URL réelle
-                    url = href.split('/url?q=')[1].split('&')[0]
-                    # Filtrer les URLs Google
-                    if not url.startswith(('https://www.google.', 'http://www.google.')):
-                        # Nettoyer l'URL
-                        from urllib.parse import unquote
-                        return unquote(url)
-    except Exception:
-        pass
-    
+def _url_depuis_ddg(html: str) -> str | None:
+    """Premier résultat organique d'une page DuckDuckGo « html » (les publicités sont ignorées)."""
+    from bs4 import BeautifulSoup
+
+    for a in BeautifulSoup(html, "html.parser").select("a.result__a"):
+        href = a.get("href", "")
+        if href.startswith("//"):
+            href = "https:" + href
+        cible = parse_qs(urlparse(href).query).get("uddg", [href])[0]
+        hote = urlparse(cible).netloc.lower()
+        if cible.startswith(("http://", "https://")) and "duckduckgo.com" not in hote:
+            return cible
     return None
+
+
+def _recherche_url(nom: str, ticker: str | None) -> str | None:
+    """1) recherche web « {nom} Financial report » ; 2) repli : site de l'émetteur indiqué par Yahoo."""
+    import requests
+
+    try:
+        r = requests.get("https://html.duckduckgo.com/html/?q=" + quote_plus(f"{nom} Financial report"),
+                         headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"},
+                         timeout=8)
+        if r.status_code == 200:
+            url = _url_depuis_ddg(r.text)
+            if url:
+                return url
+    except Exception:
+        pass  # bloqué / hors ligne : on tente le repli
+    if ticker:
+        try:
+            site = (yf.Ticker(ticker).info or {}).get("website")
+            if site and str(site).startswith(("http://", "https://")):
+                return str(site)
+        except Exception:
+            pass
+    return None
+
+
+@st.cache_data(ttl=24 * 3600, show_spinner=False)
+def _url_en_cache(nom: str, ticker: str | None) -> str:
+    url = _recherche_url(nom, ticker)
+    if not url:
+        raise LookupError(nom)  # une exception n'est jamais mise en cache : on réessaiera plus tard
+    return url
+
+
+def chercher_url_publication(nom: str, ticker: str | None = None) -> str | None:
+    """URL de la publication financière d'un titre (recherche web, sans clé API), ou None.
+
+    Résultat mis en cache 24 h ; ne lève jamais d'exception.
+    """
+    if not nom or not str(nom).strip():
+        return None
+    try:
+        return _url_en_cache(str(nom).strip(), ticker)
+    except Exception:
+        return None
 
 
 def lire_cours(ticker: str) -> dict:
@@ -133,10 +150,10 @@ def cours_batch(tickers: tuple) -> tuple[dict, datetime]:
 
 def _lire_info(ticker: str) -> dict:
     try:
-        info = yf.Ticker(ticker).info
+        info = yf.Ticker(ticker).info or {}
     except Exception:
         return {}
-    
+
     # KPIs pour ETF
     net_assets = info.get("totalAssets") or info.get("netAssets")
     expense_ratio = info.get("netExpenseRatio") or info.get("expenseRatio")
@@ -145,19 +162,16 @@ def _lire_info(ticker: str) -> dict:
     net_income = info.get("netIncome") or info.get("netIncomeToCommon")
     ebitda = info.get("ebitda") or info.get("EBITDA")
     
-    # Calcul EV/EBITDA si possible
+    # EV/EBITDA : uniquement avec la vraie valeur d'entreprise (marketCap/EBITDA serait un autre ratio)
     ev_ebitda = None
-    if ebitda and ebitda > 0:
-        enterprise_value = info.get("enterpriseValue")
-        market_cap = info.get("marketCap")
-        if enterprise_value:
-            ev_ebitda = enterprise_value / ebitda if ebitda > 0 else None
-        elif market_cap:
-            # Approximation si EV non disponible
-            ev_ebitda = market_cap / ebitda if ebitda > 0 else None
-    
+    enterprise_value = _positif(info.get("enterpriseValue"))
+    if enterprise_value and ebitda and ebitda > 0:
+        ev_ebitda = enterprise_value / ebitda
+
     return {
         "per": _positif(info.get("trailingPE")),
+        "per_prev": _positif(info.get("forwardPE")),
+        "ev": enterprise_value,
         "ca": info.get("totalRevenue"),
         "capi": info.get("marketCap"),
         "secteur_yahoo": info.get("sector"),  # en anglais : surchargeable dans « Secteurs »

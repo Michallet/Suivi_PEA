@@ -170,7 +170,7 @@ if tables_manquantes:
                + ". Exécutez la version à jour de schema.sql dans Supabase.")
 
 tmap = (tick.set_index("isin") if not tick.empty
-        else pd.DataFrame(columns=["ticker", "nom", "dernier_prix", "dernier_prix_at"]))
+        else pd.DataFrame(columns=["ticker", "nom", "dernier_prix", "dernier_prix_at", "url"]))
 sect_dict = dict(zip(sect["isin"], sect["secteur"]))
 
 # --------------------------------------------------------------------------- #
@@ -271,6 +271,126 @@ def choisir_isin(label: str, options: list[str], cle: str, nouveau: bool = True)
     if choix == NOUVEL_ISIN:
         return st.text_input("ISIN", key=cle + "_new", placeholder="FR0000121014").strip().upper()
     return choix
+
+
+# --------------------------------------------------------------------------- #
+# Fiches de lignes communes à Portefeuille, Projet et Watchlist
+# --------------------------------------------------------------------------- #
+CONTEXTES_URL = ("pf", "pj", "wl")  # une clé de widget par onglet (même ISIN possible dans plusieurs)
+
+
+def url_publication(isin: str) -> str | None:
+    """Lien de publication d'un ISIN : tickers.url, sinon l'ancienne colonne watchlist.url."""
+    if "url" in tmap.columns and isin in tmap.index:
+        u = C.nettoyer_url(tmap.loc[isin, "url"])
+        if u:
+            return u
+    if "url" in wl.columns and not wl.empty:
+        sel = wl.loc[wl["isin"] == isin, "url"]
+        if len(sel):
+            return C.nettoyer_url(sel.iloc[0])
+    return None
+
+
+def lien_md(isin: str) -> str:
+    """Ligne Markdown « 📄 Publication » (vide si aucun lien)."""
+    u = url_publication(isin)
+    return f"  \n[📄 Publication]({u})" if u else ""
+
+
+def _present(x) -> bool:
+    return x is not None and not pd.isna(x) and x != 0
+
+
+def lignes_fondamentaux(f: dict) -> list[tuple[str, str]]:
+    """Fondamentaux Yahoo disponibles, dans le même ordre partout ; les valeurs absentes sont omises."""
+    f = f or {}
+    defs = [
+        ("PER", "per", lambda x: fmt(x, 1)),
+        ("PER prévisionnel", "per_prev", lambda x: fmt(x, 1)),
+        ("Chiffre d'affaires", "ca", C.formater_gros_nombre),
+        ("Bénéfice net", "net_income", C.formater_gros_nombre),
+        ("EBITDA", "ebitda", C.formater_gros_nombre),
+        ("Capitalisation", "capi", C.formater_gros_nombre),
+        ("Valeur d'entreprise", "ev", C.formater_gros_nombre),
+        ("EV/EBITDA", "ev_ebitda", lambda x: f"{fmt(x, 1)}x"),
+        ("Actifs sous gestion", "net_assets", C.formater_gros_nombre),
+        ("Frais annuels", "expense_ratio", lambda x: f"{fmt(x, 2)} %"),
+    ]
+    return [(lbl, fn(f[k])) for lbl, k, fn in defs if _present(f.get(k))]
+
+
+def enregistrer_url(isin: str, url: str | None) -> str | None:
+    """Mémorise (ou efface) l'URL d'un ISIN dans tickers. Retourne un message d'erreur ou None."""
+    try:
+        db.modifier("tickers", isin, {"url": url}, cle="isin")
+    except Exception:
+        return ("URL non enregistrée : exécutez dans Supabase « alter table tickers "
+                "add column if not exists url text; »")
+    return None
+
+
+def _enregistrer_url_cb(isin: str, cle: str) -> None:
+    brut = st.session_state.get(cle, "").strip()
+    url = C.nettoyer_url(brut) if brut else None
+    if brut and not url:
+        flash("URL invalide : elle doit commencer par http:// ou https://.")
+        return
+    err = enregistrer_url(isin, url)
+    if err:
+        flash(err)
+        return
+    for ctx in CONTEXTES_URL:  # garde les éditeurs des autres onglets synchronisés
+        if f"url_{ctx}_{isin}" in st.session_state:
+            st.session_state[f"url_{ctx}_{isin}"] = url or ""
+    flash("Lien enregistré ✅" if url else "Lien supprimé")
+
+
+def _chercher_url_cb(cle: str, nom: str, ticker) -> None:
+    url = D.chercher_url_publication(nom, ticker if isinstance(ticker, str) else None)
+    if url:
+        st.session_state[cle] = url
+        flash("URL trouvée : vérifiez-la puis enregistrez.")
+    else:
+        flash("Aucune URL trouvée : saisissez-la manuellement.")
+
+
+def editeur_url(isin: str, ctx: str) -> None:
+    """Champ « URL de publication » (données réelles uniquement) avec enregistrement et recherche."""
+    if not reel:
+        return
+    cle = f"url_{ctx}_{isin}"
+    if cle not in st.session_state:
+        st.session_state[cle] = url_publication(isin) or ""
+    st.text_input("URL de publication", key=cle, placeholder="https://…")
+    ticker = tmap.loc[isin, "ticker"] if isin in tmap.index else None
+    c1, c2 = st.columns(2)
+    c1.button("💾 Enregistrer", key=cle + "_ok", on_click=_enregistrer_url_cb, args=(isin, cle))
+    c2.button("🔍 Chercher", key=cle + "_q", on_click=_chercher_url_cb,
+              args=(cle, nom_de(tmap, isin), ticker), help="Recherche web de la publication financière")
+
+
+def carte_ligne(r, ctx: str) -> None:
+    """Carte d'une ligne détenue (réelle ou projetée) : synthèse, lien, détails + fondamentaux."""
+    badge = "" if r.statut == "live" else f" ⚠️ {r.statut}"
+    jour = pastille(r.var_jour_pct, f"{fmt(r.var_jour_pct, 2, True)} % auj.")
+    total = pastille(r.perf_pct, f"{fmt(r.perf_pct, 1, True)} % total")
+    with st.container(border=True):
+        g, d = st.columns([3, 2])
+        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %{lien_md(r.isin)}")
+        d.markdown(f"<div style='text-align:right'><b>{fmt(r.valeur)} €</b><br>"
+                   f"{jour}<br>{total}</div>", unsafe_allow_html=True)
+        with st.expander("Détails"):
+            f = fonds.get(r.ticker, {})
+            details = ([("Quantité", f"{r.quantite:g}"),
+                        ("PRM", f"{fmt(r.prm)} €"),
+                        ("Cours", f"{fmt(r.prix_eff)} €"),
+                        ("+/- value latente", f"{fmt(r.pv_latente, 2, True)} €"),
+                        ("Dividendes perçus", f"{fmt(r.dividendes)} €")]
+                       + lignes_fondamentaux(f)
+                       + [("ISIN · ticker", f"{r.isin} · {r.ticker}")])
+            st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
+            editeur_url(r.isin, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -518,93 +638,66 @@ def onglet_watchlist() -> None:
                 "formulaires de saisie et dans les scénarios.")
     for r in wl.itertuples():
         c = cours_all[cours_all["isin"] == r.isin]
-        prix = prev = None if c.empty else None
+        prix = prev = None
         if not c.empty:
             prix, prev = c.iloc[0]["prix"], c.iloc[0]["prev_close"]
         var = (prix / prev - 1) * 100 if prix and prev and not pd.isna(prev) else None
         note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
-        
-        # Récupérer les KPIs
         ticker = tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None
         f = fonds.get(ticker, {}) if ticker else {}
-        
+
         with st.container(border=True):
-            g, d, x = st.columns([5, 3, 1], vertical_alignment="center")
-            
-            # Nom avec lien vers publication
-            nom = nom_de(tmap, r.isin)
-            url = r.url if "url" in wl.columns and r.url and r.url.strip() else None
-            if url:
-                g.markdown(f"**[{nom}]({url})**{note}")
-            else:
-                g.markdown(f"**{nom}**{note}")
-            
-            txt = f"**{fmt(prix)} €**" if prix and not pd.isna(prix) else "N/A"
+            g, d = st.columns([3, 2])
+            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}{lien_md(r.isin)}")
+            txt = f"<b>{fmt(prix)} €</b>" if prix and not pd.isna(prix) else "N/A"
             if var is not None:
-                txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} %")
-            
-            # Ajouter les KPIs sous le prix
-            kpi_txt = ""
-            
-            # KPIs pour ETF
-            if f.get("net_assets"):
-                kpi_txt += f"<br>Actifs: {C.formater_gros_nombre(f['net_assets'])}"
-            if f.get("expense_ratio"):
-                kpi_txt += f"<br>Frais: {fmt(f['expense_ratio'], 2)} %"
-            
-            # KPIs pour actions individuelles
-            if f.get("net_income"):
-                kpi_txt += f"<br>Bénéfice: {C.formater_gros_nombre(f['net_income'])}"
-            if f.get("ebitda"):
-                kpi_txt += f"<br>EBITDA: {C.formater_gros_nombre(f['ebitda'])}"
-            if f.get("ev_ebitda"):
-                kpi_txt += f"<br>EV/EBITDA: {fmt(f['ev_ebitda'], 1)}x"
-            
-            d.markdown(f"<div style='text-align:right'>{txt}{kpi_txt}</div>", unsafe_allow_html=True)
-            
-            if x.button("✖", key=f"wl_del_{r.isin}", help="Retirer de la watchlist"):
-                store.supprimer("watchlist", r.isin, cle="isin")
-                flash("Retiré de la watchlist")
-                st.rerun()
+                txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} % auj.")
+            d.markdown(f"<div style='text-align:right'>{txt}</div>", unsafe_allow_html=True)
+            with st.expander("Détails"):
+                details = ([("Cours", f"{fmt(prix)} €")] + lignes_fondamentaux(f)
+                           + [("ISIN · ticker", f"{r.isin} · {ticker or '—'}")])
+                st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
+                editeur_url(r.isin, "wl")
+                if reel and st.button("🗑 Retirer de la watchlist", key=f"wl_del_{r.isin}"):
+                    store.supprimer("watchlist", r.isin, cle="isin")
+                    st.session_state.pop(f"url_wl_{r.isin}", None)
+                    flash("Retiré de la watchlist")
+                    st.rerun()
 
     with st.expander("➕ Ajouter une action / un ETF"):
         if not reel:
             st.caption("Disponible après connexion.")
             return
-        with st.form("f_wl", clear_on_submit=True):
-            isin = st.text_input("ISIN", placeholder="FR0000121014")
-            tk = st.text_input("Ticker Yahoo (facultatif)", placeholder="ex : MC.PA — si l'ISIN n'est pas reconnu")
-            note = st.text_input("Note (facultatif)")
-            url = st.text_input("URL de publication (facultatif)", placeholder="ex : https://investor.societe.com")
-            
-            # Bouton de recherche auto pour l'URL
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                ok = st.form_submit_button("Ajouter")
-            with col2:
-                if st.form_submit_button("↩ Rechercher", help="Rechercher URL de publication"):
-                    if isin and isin.strip():
-                        isin_clean = isin.strip().upper()
-                        # Obtenir le nom pour la recherche
-                        nom = (tmap.loc[isin_clean, "nom"] if isin_clean in tmap.index else 
-                               D.chercher_ticker(isin_clean).get("nom", "") if D.chercher_ticker(isin_clean) else "")
-                        if nom:
-                            found_url = D.chercher_url_publication(nom)
-                            if found_url:
-                                st.session_state[f"wl_url_{isin_clean}"] = found_url
-                                st.rerun()
-                            else:
-                                st.info("Aucune URL trouvée. Saisissez-la manuellement.")
-                        else:
-                            st.info("Nom non trouvé. Vérifiez l'ISIN.")
-            
-        if ok:
-            isin, tk = isin.strip().upper(), tk.strip().upper()
-            if not C.isin_valide(isin):
+        # Remise à zéro des champs après un ajout (autorisée ici : avant la création des widgets)
+        if st.session_state.pop("wl_reset", False):
+            for k in ("wl_isin", "wl_tk", "wl_note", "wl_url"):
+                st.session_state[k] = ""
+        st.text_input("ISIN", placeholder="FR0000121014", key="wl_isin")
+        st.text_input("Ticker Yahoo (facultatif)", key="wl_tk",
+                      placeholder="ex : MC.PA — si l'ISIN n'est pas reconnu")
+        st.text_input("Note (facultatif)", key="wl_note")
+        st.text_input("URL de publication (facultatif)", key="wl_url",
+                      placeholder="ex : https://investor.societe.com")
+        c_add, c_cherche = st.columns(2)
+        ajouter = c_add.button("Ajouter", key="wl_add", type="primary")
+        c_cherche.button("🔍 Chercher l'URL", key="wl_cherche", on_click=_chercher_url_wl,
+                         args=(tmap,), help="Recherche web de la publication financière")
+        if msg := st.session_state.pop("wl_msg", None):
+            st.info(msg)
+
+        if ajouter:
+            isin = st.session_state.get("wl_isin", "").strip().upper()
+            tk = st.session_state.get("wl_tk", "").strip().upper()
+            note = st.session_state.get("wl_note", "").strip()
+            url_saisie = C.nettoyer_url(st.session_state.get("wl_url", ""))
+            if st.session_state.get("wl_url", "").strip() and not url_saisie:
+                st.error("URL invalide : elle doit commencer par http:// ou https://.")
+            elif not C.isin_valide(isin):
                 st.error("ISIN invalide (12 caractères, clé de contrôle incorrecte).")
             elif isin in wl["isin"].tolist():
                 st.info("Déjà dans la watchlist.")
             else:
+                trouve = None
                 if isin not in tmap.index or tk:
                     trouve = None if tk else D.chercher_ticker(isin)
                     ticker = tk or (trouve or {}).get("ticker")
@@ -613,19 +706,39 @@ def onglet_watchlist() -> None:
                     if err:
                         st.error(err)
                         return
-                
-                # Gérer l'URL si fournie ou trouvée automatiquement
-                url_value = url.strip() if url and url.strip() else None
-                if url_value is None:
-                    # Essayer de trouver automatiquement via le nom
-                    nom = (tmap.loc[isin, "nom"] if isin in tmap.index else 
-                           (D.chercher_ticker(isin) or {}).get("nom"))
-                    if nom:
-                        url_value = D.chercher_url_publication(nom)
-                
-                db.upsert("watchlist", [{"isin": isin, "note": note.strip() or None, "url": url_value}], "isin")
-                flash("Ajouté à la watchlist ✅")
+                url_value = url_saisie
+                if url_value is None:  # recherche automatique (silencieuse en cas d'échec)
+                    nom = (nom_de(tmap, isin) if isin in tmap.index else (trouve or {}).get("nom"))
+                    ticker_url = tmap.loc[isin, "ticker"] if isin in tmap.index else tk or None
+                    url_value = D.chercher_url_publication(nom, ticker_url) if nom else None
+                db.upsert("watchlist", [{"isin": isin, "note": note or None}], "isin")
+                msg = "Ajouté à la watchlist ✅"
+                if url_value:
+                    err_url = enregistrer_url(isin, url_value)
+                    if err_url:
+                        msg += " — " + err_url
+                st.session_state["wl_reset"] = True
+                flash(msg)
                 st.rerun()
+
+
+def _chercher_url_wl(tmap_: pd.DataFrame) -> None:
+    """Callback du bouton « Chercher l'URL » : remplit le champ URL (modifiable ici, pas après coup)."""
+    isin = st.session_state.get("wl_isin", "").strip().upper()
+    if not C.isin_valide(isin):
+        st.session_state["wl_msg"] = "Saisissez d'abord un ISIN valide."
+        return
+    if isin in tmap_.index:
+        nom, ticker = nom_de(tmap_, isin), tmap_.loc[isin, "ticker"]
+    else:
+        trouve = D.chercher_ticker(isin) or {}
+        nom, ticker = trouve.get("nom"), trouve.get("ticker")
+    url = D.chercher_url_publication(nom, ticker) if nom else None
+    if url:
+        st.session_state["wl_url"] = url
+    else:
+        st.session_state["wl_msg"] = "Aucune URL trouvée : saisissez-la manuellement."
+
 
 # --------------------------------------------------------------------------- #
 # Onglet Projet (scénarios)
@@ -775,6 +888,9 @@ def onglet_projet() -> None:
         tableau = par_ligne.rename(columns={"label": "Ligne", "reel": "Actuel %", "projete": "Projeté %",
                                             "ecart": "Écart"}).round(1)
         st.dataframe(tableau, hide_index=True)
+    st.subheader("Lignes du scénario")
+    for r in pos_p.sort_values("valeur", ascending=False).itertuples():
+        carte_ligne(r, "pj")
     ops = "; ".join(f"{r.type} {r.quantite:g} × {nom_de(tmap, r.isin)}" for r in sim.itertuples())
     bloc_ia_scenario(sid, pos_p, cash_p, ops, versement)
     bloc_chat(scenario=True, sid=sid, pos_p=pos_p, cash_p=cash_p, operations=ops, versement=versement)
@@ -1021,28 +1137,7 @@ with tab_pf:
 
             # -- Une carte par ligne (lisible sur téléphone) ---------------- #
             for r in pos.sort_values("valeur", ascending=False).itertuples():
-                badge = "" if r.statut == "live" else f" ⚠️ {r.statut}"
-                jour = pastille(r.var_jour_pct, f"{fmt(r.var_jour_pct, 2, True)} % auj.")
-                total = pastille(r.perf_pct, f"{fmt(r.perf_pct, 1, True)} % total")
-                with st.container(border=True):
-                    g, d = st.columns([3, 2])
-                    g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %")
-                    d.markdown(f"<div style='text-align:right'><b>{fmt(r.valeur)} €</b><br>"
-                               f"{jour}<br>{total}</div>", unsafe_allow_html=True)
-                    with st.expander("Détails"):
-                        f = fonds.get(r.ticker, {})
-                        details = [
-                            ("Quantité", f"{r.quantite:g}"),
-                            ("PRM", f"{fmt(r.prm)} €"),
-                            ("Cours", f"{fmt(r.prix_eff)} €"),
-                            ("+/- value latente", f"{fmt(r.pv_latente, 2, True)} €"),
-                            ("Dividendes perçus", f"{fmt(r.dividendes)} €"),
-                            ("PER", fmt(f.get("per"), 1)),
-                            ("Chiffre d'affaires", C.formater_gros_nombre(f.get("ca"))),
-                            ("Capitalisation", C.formater_gros_nombre(f.get("capi"))),
-                            ("ISIN · ticker", f"{r.isin} · {r.ticker}"),
-                        ]
-                        st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
+                carte_ligne(r, "pf")
 
             # -- KPIs étendus --------------------------------------------- #
             col1, col2, col3 = st.columns(3)

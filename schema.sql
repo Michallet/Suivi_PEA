@@ -37,7 +37,8 @@ create table if not exists tickers (
   ticker          text not null,
   nom             text,
   dernier_prix    numeric,
-  dernier_prix_at timestamptz
+  dernier_prix_at timestamptz,
+  url             text          -- URL de publication financière (v6)
 );
 
 create table if not exists snapshots (
@@ -120,3 +121,10 @@ create table if not exists chat_log (
 );
 
 alter table chat_log enable row level security;
+
+-- =====================================================================================
+-- v6 : URL de publication financière, par ISIN (tickers.url) — bases existantes
+-- =====================================================================================
+
+alter table tickers   add column if not exists url text;
+alter table watchlist add column if not exists url text;   -- ancienne colonne, encore lue en repli
