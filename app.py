@@ -523,13 +523,45 @@ def onglet_watchlist() -> None:
             prix, prev = c.iloc[0]["prix"], c.iloc[0]["prev_close"]
         var = (prix / prev - 1) * 100 if prix and prev and not pd.isna(prev) else None
         note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
+        
+        # Récupérer les KPIs
+        ticker_key = r.isin if r.isin in fonds else (tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None)
+        f = fonds.get(ticker_key, {})
+        
         with st.container(border=True):
             g, d, x = st.columns([5, 3, 1], vertical_alignment="center")
-            g.markdown(f"**{nom_de(tmap, r.isin)}**{note}")
+            
+            # Nom avec lien vers publication
+            nom = nom_de(tmap, r.isin)
+            url = r.url if hasattr(r, "url") and r.url and r.url.strip() else None
+            if url:
+                g.markdown(f"**[{nom}]({url})**{note}")
+            else:
+                g.markdown(f"**{nom}**{note}")
+            
             txt = f"**{fmt(prix)} €**" if prix and not pd.isna(prix) else "N/A"
             if var is not None:
                 txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} %")
-            d.markdown(f"<div style='text-align:right'>{txt}</div>", unsafe_allow_html=True)
+            
+            # Ajouter les KPIs sous le prix
+            kpi_txt = ""
+            
+            # KPIs pour ETF
+            if f.get("net_assets"):
+                kpi_txt += f"<br>Actifs: {C.formater_gros_nombre(f['net_assets'])}"
+            if f.get("expense_ratio"):
+                kpi_txt += f"<br>Frais: {fmt(f['expense_ratio'], 2)} %"
+            
+            # KPIs pour actions individuelles
+            if f.get("net_income"):
+                kpi_txt += f"<br>Bénéfice: {C.formater_gros_nombre(f['net_income'])}"
+            if f.get("ebitda"):
+                kpi_txt += f"<br>EBITDA: {C.formater_gros_nombre(f['ebitda'])}"
+            if f.get("ev_ebitda"):
+                kpi_txt += f"<br>EV/EBITDA: {fmt(f['ev_ebitda'], 1)}x"
+            
+            d.markdown(f"<div style='text-align:right'>{txt}{kpi_txt}</div>", unsafe_allow_html=True)
+            
             if x.button("✖", key=f"wl_del_{r.isin}", help="Retirer de la watchlist"):
                 store.supprimer("watchlist", r.isin, cle="isin")
                 flash("Retiré de la watchlist")
@@ -543,7 +575,29 @@ def onglet_watchlist() -> None:
             isin = st.text_input("ISIN", placeholder="FR0000121014")
             tk = st.text_input("Ticker Yahoo (facultatif)", placeholder="ex : MC.PA — si l'ISIN n'est pas reconnu")
             note = st.text_input("Note (facultatif)")
-            ok = st.form_submit_button("Ajouter")
+            url = st.text_input("URL de publication (facultatif)", placeholder="ex : https://investor.societe.com")
+            
+            # Bouton de recherche auto pour l'URL
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                ok = st.form_submit_button("Ajouter")
+            with col2:
+                if st.form_submit_button("↩ Rechercher", help="Rechercher URL de publication"):
+                    if isin and isin.strip():
+                        isin_clean = isin.strip().upper()
+                        # Obtenir le nom pour la recherche
+                        nom = (tmap.loc[isin_clean, "nom"] if isin_clean in tmap.index else 
+                               D.chercher_ticker(isin_clean).get("nom", "") if D.chercher_ticker(isin_clean) else "")
+                        if nom:
+                            found_url = D.chercher_url_publication(nom)
+                            if found_url:
+                                st.session_state[f"wl_url_{isin_clean}"] = found_url
+                                st.rerun()
+                            else:
+                                st.info("Aucune URL trouvée. Saisissez-la manuellement.")
+                        else:
+                            st.info("Nom non trouvé. Vérifiez l'ISIN.")
+            
         if ok:
             isin, tk = isin.strip().upper(), tk.strip().upper()
             if not C.isin_valide(isin):
@@ -559,10 +613,19 @@ def onglet_watchlist() -> None:
                     if err:
                         st.error(err)
                         return
-                db.upsert("watchlist", [{"isin": isin, "note": note.strip() or None}], "isin")
+                
+                # Gérer l'URL si fournie ou trouvée automatiquement
+                url_value = url.strip() if url and url.strip() else None
+                if url_value is None:
+                    # Essayer de trouver automatiquement via le nom
+                    nom = (tmap.loc[isin, "nom"] if isin in tmap.index else 
+                           (D.chercher_ticker(isin) or {}).get("nom"))
+                    if nom:
+                        url_value = D.chercher_url_publication(nom)
+                
+                db.upsert("watchlist", [{"isin": isin, "note": note.strip() or None, "url": url_value}], "isin")
                 flash("Ajouté à la watchlist ✅")
                 st.rerun()
-
 
 # --------------------------------------------------------------------------- #
 # Onglet Projet (scénarios)

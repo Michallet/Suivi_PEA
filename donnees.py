@@ -41,6 +41,50 @@ def chercher_ticker(isin: str) -> dict | None:
             "nom": choix.get("shortname") or choix.get("longname") or choix["symbol"]}
 
 
+def chercher_url_publication(nom: str) -> str | None:
+    """Recherche Web pour trouver l'URL du rapport financier d'une entreprise.
+    Retourne le premier résultat de recherche Google pour '{nom} Financial report'.
+    """
+    try:
+        import requests
+        from urllib.parse import quote
+        
+        # Construire l'URL de recherche Google
+        query = f"{nom} Financial report"
+        encoded_query = quote(query)
+        google_url = f"https://www.google.com/search?q={encoded_query}"
+        
+        # Requête avec headers pour éviter le blocage
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        
+        response = requests.get(google_url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            # Extraire le premier lien organique de la page de résultats
+            # Note: Google peut bloquer, donc on utilise une approche simple
+            # En production, il faudrait utiliser l'API Google Custom Search
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Trouver les liens dans les résultats de recherche
+            for link in soup.find_all('a'):
+                href = link.get('href')
+                if href and href.startswith('/url?q='):
+                    # Extraire l'URL réelle
+                    url = href.split('/url?q=')[1].split('&')[0]
+                    # Filtrer les URLs Google
+                    if not url.startswith(('https://www.google.', 'http://www.google.')):
+                        # Nettoyer l'URL
+                        from urllib.parse import unquote
+                        return unquote(url)
+    except Exception:
+        pass
+    
+    return None
+
+
 def lire_cours(ticker: str) -> dict:
     """Dernier cours, clôture précédente, devise. Valeurs None en cas d'échec (jamais 0)."""
     out = {"prix": None, "prev": None, "devise": None}
@@ -92,11 +136,36 @@ def _lire_info(ticker: str) -> dict:
         info = yf.Ticker(ticker).info
     except Exception:
         return {}
+    
+    # KPIs pour ETF
+    net_assets = info.get("totalAssets") or info.get("netAssets")
+    expense_ratio = info.get("netExpenseRatio") or info.get("expenseRatio")
+    
+    # KPIs pour actions individuelles
+    net_income = info.get("netIncome") or info.get("netIncomeToCommon")
+    ebitda = info.get("ebitda") or info.get("EBITDA")
+    
+    # Calcul EV/EBITDA si possible
+    ev_ebitda = None
+    if ebitda and ebitda > 0:
+        enterprise_value = info.get("enterpriseValue")
+        market_cap = info.get("marketCap")
+        if enterprise_value:
+            ev_ebitda = enterprise_value / ebitda if ebitda > 0 else None
+        elif market_cap:
+            # Approximation si EV non disponible
+            ev_ebitda = market_cap / ebitda if ebitda > 0 else None
+    
     return {
         "per": _positif(info.get("trailingPE")),
         "ca": info.get("totalRevenue"),
         "capi": info.get("marketCap"),
         "secteur_yahoo": info.get("sector"),  # en anglais : surchargeable dans « Secteurs »
+        "net_assets": net_assets,
+        "expense_ratio": expense_ratio,
+        "net_income": net_income,
+        "ebitda": ebitda,
+        "ev_ebitda": ev_ebitda,
     }
 
 

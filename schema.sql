@@ -61,6 +61,7 @@ alter table snapshots    enable row level security;
 create table if not exists watchlist (
   isin      text primary key references tickers(isin) on delete cascade,
   note      text,
+  url       text,
   ajoute_le timestamptz not null default now()
 );
 
