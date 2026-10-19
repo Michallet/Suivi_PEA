@@ -1,5 +1,5 @@
 # CONTEXTE.md — Suivi PEA (pour reprise avec Claude)
-**Dernière mise à jour** : 19/10/2026 · **Version du code** : v6 + corrections · **Langue** : français
+**Dernière mise à jour** : 20/10/2026 · **Version du code** : v6 + audit du 20/10 · **Langue** : français
 
 ---
 
@@ -93,19 +93,36 @@ Tables Supabase :
 
 ---
 
+## 5️⃣bis **Audit du 20/10/2026 (Claude) — corrections livrées**
+
+| Problème | Correction |
+|---|---|
+| `schema.py` : `watchlist` sans `url` ⇒ `db.lire` **ignorait la colonne** (liens jamais affichés, démo incluse) | colonne ajoutée ; `demo.py` aligné (4 colonnes) |
+| `r.url.strip()` plantait si la valeur était NaN/None | `calculs.nettoyer_url()` (refuse aussi `javascript:`, échappe les parenthèses Markdown) |
+| Bouton « Rechercher » : posait une clé `wl_url_{isin}` jamais lue + 2 boutons dans un `st.form` | formulaire remplacé par des widgets à clés + callback `_chercher_url_wl` |
+| Recherche d'URL par scraping Google (bloqué/CAPTCHA, non testé) | DuckDuckGo « html » (sans clé) + repli sur `info["website"]` de Yahoo, cache 24 h, ne lève jamais |
+| « EV/EBITDA » calculé avec `marketCap` en repli (ratio faux sous un mauvais nom) | uniquement avec `enterpriseValue`, sinon non affiché |
+| Absents du dépôt : `tests/`, `.streamlit/secrets.toml.example`, `.gitignore` | recréés (`tests/test_calculs.py`, `tests/test_schema.py` — 9 tests, **pas les 47 d'origine**) |
+| `requirements-1.txt` : doublon obsolète (sans bs4) | à supprimer à la main sur GitHub |
+
+**Non vérifié** : rendu Streamlit réel, DuckDuckGo en direct, Yahoo/Supabase (pas de réseau ni de Streamlit dans l'environnement d'audit).
+**Alerte confidentialité** : `seed_pea.sql` et `CONTEXTE.md` §4 contiennent les positions/PRM/montants réels dans un dépôt public (contraire au §2) : les retirer **et** tenir compte que l'historique Git les conserve.
+Lancer : `pip install -r requirements-dev.txt && pytest -q`.
+
+---
+
 ## 6️⃣ **Problèmes connus / À améliorer**
 
 ### ⚠️ **Recherche Google (URL automatique)**
-- **Risque** : Google peut bloquer les requêtes automatiques (CAPTCHA, restrictions IP)
+- **Risque** : DuckDuckGo (remplace Google depuis le 20/10) peut aussi bloquer les IP de Streamlit Cloud ; repli sur le site Yahoo, sinon saisie manuelle
 - **Solution recommandée** : Remplacer par **API Google Custom Search** (gratuite : 100 req/jour)
   - Clé API à ajouter dans `st.secrets`
   - Endpoint : `https://www.googleapis.com/customsearch/v1`
 - **Alternative** : Utiliser **DuckDuckGo** (pas de blocage) ou **Bing Search API**
 
 ### ⚠️ **KPIs EV/EBITDA**
-- **Calcul** : `enterpriseValue / ebitda` ou `marketCap / ebitda` (fallback)
-- **Limite** : `enterpriseValue` souvent **non disponible** pour les ETF → fallback sur `marketCap`
-- **Amélioration** : Ajouter un indicateur de source (EV vs MarketCap)
+- **Calcul** : `enterpriseValue / ebitda` uniquement (plus de repli sur `marketCap`)
+- **Limite** : `enterpriseValue` souvent absent ⇒ KPI non affiché
 
 ### ⚠️ **Cache des fondamentaux**
 - **TTL** : 6 heures (`@st.cache_data(ttl=6*3600)`)
@@ -123,7 +140,7 @@ Tables Supabase :
 | PEA Euro Court Terme | `FR0013346681` | `OBLI.PA` | [Lien](https://www.amundi.fr/fr/professionnel/etf/fiche/FR0013346681) |
 | PEA Monde (MSCI World) | `FR001400U5Q4` | `DCAM.PA` | [Lien](https://www.amundi.fr/fr/professionnel/etf/fiche/FR001400U5Q4) |
 
-**Note** : Ces URLs sont **auto-générées** par `chercher_url_publication()` pour les ISIN `FR001*`.
+**Note** : ces URLs sont saisies à la main ; `chercher_url_publication()` ne les génère PAS (recherche web générique).
 
 ---
 

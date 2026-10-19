@@ -74,7 +74,8 @@ def _tables() -> dict:
     tickers = pd.DataFrame([(isin, v[0], v[1], v[3], maintenant) for isin, v in TITRES.items()],
                            columns=SCHEMA["tickers"])
     secteurs = pd.DataFrame([(isin, v[2]) for isin, v in TITRES.items() if v[2]], columns=SCHEMA["secteurs"])
-    watch = pd.DataFrame([(isin, note, maintenant) for isin, note in WATCHLIST], columns=SCHEMA["watchlist"])
+    watch = pd.DataFrame([(isin, note, None, maintenant) for isin, note in WATCHLIST],
+                         columns=SCHEMA["watchlist"])
     scen = pd.DataFrame([(1, "Exemple : renforcer la santé", 0.0, maintenant)], columns=SCHEMA["scenarios"])
     sc_tr = pd.DataFrame([(1, 1, "FR0000120321", "ACHAT", 3.0, TITRES["FR0000120321"][3], maintenant),
                           (2, 1, "NL0010273215", "VENTE", 1.0, TITRES["NL0010273215"][3], maintenant)],
