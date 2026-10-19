@@ -492,7 +492,8 @@ def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
             st.caption(f"Limite de {llm.MAX_CHAT_PAR_JOUR} messages par jour atteinte.")
             return
 
-        question = (st.chat_input("Posez une question…") or "").strip()
+        # clé propre à chaque conversation : bloc_chat() est appelé 2 fois par page (Portefeuille + Projet)
+        question = (st.chat_input("Posez une question…", key=f"chat_in_{cle_session}") or "").strip()
         if question:
             ctx = contexte_chat(modele, scenario, sid, pos_p, cash_p, operations, versement)
             try:
