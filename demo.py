@@ -131,8 +131,13 @@ class DemoStore:
         if "demo_db" not in st.session_state:
             st.session_state["demo_db"] = {k: v.copy() for k, v in _base(date.today().isoformat()).items()}
         self.t: dict = st.session_state["demo_db"]
+        # Mise à niveau : tables ajoutées après la création de la session (cache du navigateur)
+        for nom, df in _base(date.today().isoformat()).items():
+            self.t.setdefault(nom, df)
 
     def lire(self, table: str) -> pd.DataFrame:
+        if table not in self.t:  # tolère une session créée avant l'ajout de la table
+            return pd.DataFrame(columns=SCHEMA.get(table, ["id"]))
         return self.t[table].copy()
 
     def inserer(self, table: str, rec: dict) -> dict:

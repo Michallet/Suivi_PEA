@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 
 import pandas as pd
@@ -21,6 +22,25 @@ MAX_CHAT_PAR_JOUR = 20
 MAX_TOURS_CHAT = 5          # filet de sécurité : le prompt demande des réponses courtes
 MAX_TOKENS_CHAT = 2048
 MAX_MOTS_REPONSE = 300  # filet de sécurité : le prompt demande quelques phrases
+
+# Prompts éditables dans prompts.md (dépôt Git) : sections « ## analyse », « ## scenario », « ## chat ».
+# Sections absentes (ou fichier manquant) = valeurs par défaut définies ci-dessous dans le code.
+PROMPTS_FICHIER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompts.md")
+
+
+def charger_prompts_md(fichier: str = PROMPTS_FICHIER) -> dict:
+    """Retourne {nom_de_section: texte} lu dans prompts.md. Fichier absent = aucune surcharge."""
+    try:
+        texte = open(fichier, encoding="utf-8").read()
+    except OSError:
+        return {}
+    sections = {}
+    for m in re.finditer(r"^##\s+([a-z0-9_-]+)\s*$([\s\S]*?)(?=^##\s|\Z)", texte, flags=re.M | re.I):
+        sections[m.group(1).lower()] = m.group(2).strip()
+    return sections
+
+
+PROMPTS_MD = charger_prompts_md()
 MAX_MOTS_SYNTHESE = 20  # filet de sécurité : le prompt demande ~10 mots
 POINTS_MAX_PAR_CRITERE = 2
 MAX_MOTS_POINT = 12  # filet de sécurité : le prompt demande ~10 mots par avantage/inconvénient
@@ -47,7 +67,7 @@ CRITERES = [
 CLES = [c[0] for c in CRITERES]
 LIBELLES = {c[0]: c[1] for c in CRITERES}
 
-SYSTEME = (
+SYSTEME_DEFAUT = (
     "Tu es un analyste qui évalue la STRUCTURE d'un PEA français (actions et ETF européens éligibles).\n"
     "Règles impératives :\n"
     "- Tu n'es pas conseiller financier : aucune recommandation d'achat, de vente ou d'arbitrage, "
@@ -62,6 +82,9 @@ SYSTEME = (
     "Critères (clé : définition) :\n"
     + "\n".join(f"- {cle} : {definition}" for cle, _, definition in CRITERES)
 )
+
+# Surcharge éventuelle par prompts.md (l'utilisateur édite le ton sans toucher au code)
+SYSTEME = PROMPTS_MD.get("analyse", SYSTEME_DEFAUT)
 
 SCHEMA_JSON = {
     "type": "object",
@@ -84,7 +107,7 @@ SCHEMA_JSON = {
 }
 
 # Variante « scénario » : mêmes critères + avantages/inconvénients par rapport au portefeuille actuel
-SYSTEME_SCENARIO = (
+SYSTEME_SCENARIO_DEFAUT = (
     SYSTEME + "\n\n"
     "Cas particulier : tu reçois DEUX structures, l'ACTUELLE (référence) et la PROJETÉE (scénario). "
     "Tu évalues les 4 critères sur la structure PROJETÉE.\n"
@@ -94,6 +117,7 @@ SYSTEME_SCENARIO = (
     "- Si le scénario ne change rien sur un critère, écris « Aucun changement » au lieu d'inventer.\n"
     "- Réponds uniquement par un objet JSON conforme au schéma demandé."
 )
+SYSTEME_SCENARIO = PROMPTS_MD.get("scenario", SYSTEME_SCENARIO_DEFAUT)
 
 SCHEMA_JSON_SCENARIO = {
     "type": "object",
@@ -376,17 +400,24 @@ def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90,
 # --------------------------------------------------------------------------- #
 # Chatbot : conversation libre avec le contexte du portefeuille en mémoire
 # --------------------------------------------------------------------------- #
-SYSTEME_CHAT = (
-    "Tu es un analyste qui répond aux questions d'un investisseur particulier français sur la "
-    "STRUCTURE de son PEA (actions et ETF européens éligibles).\n"
-    "Règles impératives :\n"
-    "- Tu n'es pas conseiller financier : aucune recommandation d'achat, de vente ou d'arbitrage, "
-    "aucune prévision de cours ni de rendement.\n"
-    "- Ne t'appuie que sur les informations communiquées dans cette conversation (structure du "
-    "portefeuille, analyses précédentes) : si une information te manque, dis-le au lieu d'inventer.\n"
-    "- Réponds en français, en quelques phrases concises et factuelles.\n\n"
+SYSTEME_CHAT_DEFAUT = (
+    "Tu es un analyste qui discute avec un investisseur particulier français de son PEA "
+    "(actions et ETF européens éligibles). La structure de son portefeuille (poids en %) et "
+    "les analyses déjà réalisées te sont communiquées ci-dessous.\n"
+    "Règles :\n"
+    "- Donne ton avis factuel : désigne les forces, les faiblesses et les lignes ou secteurs à "
+    "surveiller ; compare des options entre elles. Si quelque chose te semble déséquilibré, "
+    "dis-le franchement plutôt que de rester neutre.\n"
+    "- Reste dans la limite de l'analyse de structure : pas d'ordre d'achat ou de vente, pas de "
+    "prévision de cours ni de rendement chiffré, pas de promesse de gain. Formule en point de "
+    "vigilance plutôt qu'en recommandation, et assume tes préférences quand tu les exprimes.\n"
+    "- Pas de conseil fiscal.\n"
+    "- Ne t'appuie que sur les informations de cette conversation : si une information te manque, "
+    "dis-le au lieu d'inventer.\n"
+    "- Réponds en français, en quelques phrases concises et directes. Pas de langue de bois.\n\n"
     "Confidentialité : tu ne reçois que des poids en % (aucun montant en euros)."
 )
+SYSTEME_CHAT = PROMPTS_MD.get("chat", SYSTEME_CHAT_DEFAUT)
 
 
 def discuter(contexte: str, historique: list, question: str, cle: str,

@@ -158,7 +158,7 @@ def lire_sur(table: str) -> pd.DataFrame:
         return store.lire(table)
     except Exception:
         tables_manquantes.append(table)
-        return pd.DataFrame(columns=SCHEMA[table])
+        return pd.DataFrame(columns=SCHEMA.get(table, ["id"]))  # tolère un schema.py obsolète
 
 
 wl, scen = lire_sur("watchlist"), lire_sur("scenarios")
@@ -405,24 +405,61 @@ def bloc_ia_scenario(sid: int, pos_p: pd.DataFrame, cash_p: float,
             afficher_analyse(derniere["resultat"], quand, not a_jour, scenario=True)
 
 
-def contexte_chat(modele: str) -> str:
-    """Contexte injecté dans chaque message du chat : structure du PEA (poids en %)
-    + dernière analyse IA, si elle existe."""
-    per_isin = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
-    texte, _ = llm.construire_contexte(pos, s["cash"], per_isin, modele)
-    parties = [texte]
-    if not analyses.empty:
-        d = analyses.sort_values("id").iloc[-1]
-        notes = " ; ".join(f"{c['label']} {c['note']}/10" for c in d["resultat"]["criteres"])
-        parties.append(f"Dernière analyse IA de la structure : {notes}. "
-                       f"Conclusion : {d['resultat']['conclusion']}")
+def fondamentaux_block(p: pd.DataFrame) -> str:
+    """Une ligne de fondamentaux par ligne détenue (données Yahoo, indicatives)."""
+    lignes = ["Fondamentaux des lignes détenues (Yahoo, indicatifs) :"]
+    for r in p.sort_values("valeur", ascending=False).itertuples():
+        f = fonds.get(r.ticker, {})
+        lignes.append(f"- {r.nom} | {r.secteur} | poids {r.poids_pct:.1f} % des titres | "
+                      f"PER {fmt(f.get('per'), 1)} | cap. {C.formater_gros_nombre(f.get('capi'))} | "
+                      f"CA {C.formater_gros_nombre(f.get('ca'))} | dividendes perçus {fmt(r.dividendes)} €")
+    return "\n".join(lignes)
+
+
+def contexte_chat(modele: str, scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
+                  operations: str = "", versement: float = 0.0) -> str:
+    """Contexte injecté dans chaque message du chat : structure (poids en %, jamais de €
+    de position), dernière analyse IA et fondamentaux. En mode scénario, on parle du
+    portefeuille PROJETÉ, en précisant que c'est une simulation."""
+    parties = []
+    if scenario:
+        per_p = {i: fonds.get(t, {}).get("per") for i, t in zip(pos_p["isin"], pos_p["ticker"])}
+        per_a = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
+        texte, _ = llm.construire_contexte_scenario(pos_p, cash_p, per_p, pos, s["cash"], per_a,
+                                                    modele, sid, operations, versement)
+        nom_s = scen.loc[scen["id"].astype(int) == int(sid), "nom"]
+        parties.append(f"Tu discutes du scénario « {nom_s.iloc[0] if len(nom_s) else sid} » "
+                       "(SIMULATION de répartition), pas du portefeuille actuel : "
+                       "précise-le si une question est ambiguë.")
+        parties.append(texte)
+        sel = analyses_scen[analyses_scen["scenario_id"] == sid]
+        if not sel.empty:
+            d = sel.sort_values("id").iloc[-1]
+            notes = " ; ".join(f"{c['label']} {c['note']}/10" for c in d["resultat"]["criteres"])
+            parties.append(f"Dernière analyse IA de ce scénario : {notes}. "
+                           f"Conclusion : {d['resultat']['conclusion']}")
+        parties.append(fondamentaux_block(pos_p))
+    else:
+        per_isin = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
+        texte, _ = llm.construire_contexte(pos, s["cash"], per_isin, modele)
+        parties.append(texte)
+        if not analyses.empty:
+            d = analyses.sort_values("id").iloc[-1]
+            notes = " ; ".join(f"{c['label']} {c['note']}/10" for c in d["resultat"]["criteres"])
+            parties.append(f"Dernière analyse IA de la structure : {notes}. "
+                           f"Conclusion : {d['resultat']['conclusion']}")
+        parties.append(fondamentaux_block(pos))
     return "\n\n".join(parties)
 
 
-def bloc_chatbot() -> None:
-    """Chatbot : discussion libre sur le portefeuille, avec sa structure en mémoire."""
+def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
+              operations: str = "", versement: float = 0.0) -> None:
+    """Chatbot : discussion libre sur le portefeuille actuel ou sur un scénario projeté.
+    Une conversation distincte par scénario (clé de session dédiée)."""
+    cle_session = f"chat_scen_{sid}" if scenario else "chat_msgs"
+    titre = "#### 💬 Discuter de ce scénario" if scenario else "#### 💬 Discuter de mon portefeuille"
     with st.container(border=True):
-        st.markdown("#### 💬 Discuter de mon portefeuille")
+        st.markdown(titre)
         if not reel:
             st.caption("Disponible après connexion (et avec `GEMINI_API_KEY` dans les secrets).")
             return
@@ -435,14 +472,14 @@ def bloc_chatbot() -> None:
             st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer le chat.")
             return
 
-        if "chat_msgs" not in st.session_state:
-            st.session_state["chat_msgs"] = []
-        for m in st.session_state["chat_msgs"]:
+        if cle_session not in st.session_state:
+            st.session_state[cle_session] = []
+        for m in st.session_state[cle_session]:
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
 
-        if st.session_state["chat_msgs"] and st.button("🧹 Effacer la conversation", key="chat_reset"):
-            st.session_state["chat_msgs"] = []
+        if st.session_state[cle_session] and st.button("🧹 Effacer la conversation", key=cle_session + "_reset"):
+            st.session_state[cle_session] = []
             st.rerun()
 
         if not chat_log.empty:
@@ -455,16 +492,16 @@ def bloc_chatbot() -> None:
             st.caption(f"Limite de {llm.MAX_CHAT_PAR_JOUR} messages par jour atteinte.")
             return
 
-        question = (st.chat_input("Posez une question sur votre portefeuille…") or "").strip()
+        question = (st.chat_input("Posez une question…") or "").strip()
         if question:
+            ctx = contexte_chat(modele, scenario, sid, pos_p, cash_p, operations, versement)
             try:
                 with st.spinner("Réponse en cours…"):
-                    rep = llm.discuter(contexte_chat(modele), st.session_state["chat_msgs"],
-                                       question, cle_api, modele)
+                    rep = llm.discuter(ctx, st.session_state[cle_session], question, cle_api, modele)
             except llm.ErreurIA as e:
                 st.error(str(e))
             else:
-                st.session_state["chat_msgs"] = (st.session_state["chat_msgs"]
+                st.session_state[cle_session] = (st.session_state[cle_session]
                                                  + [{"role": "user", "content": question},
                                                     {"role": "model", "content": rep}])[-12:]
                 store.inserer("chat_log", {})
@@ -676,6 +713,7 @@ def onglet_projet() -> None:
         st.dataframe(tableau, hide_index=True)
     ops = "; ".join(f"{r.type} {r.quantite:g} × {nom_de(tmap, r.isin)}" for r in sim.itertuples())
     bloc_ia_scenario(sid, pos_p, cash_p, ops, versement)
+    bloc_chat(scenario=True, sid=sid, pos_p=pos_p, cash_p=cash_p, operations=ops, versement=versement)
     st.caption("Simulation de répartition uniquement : aucune prévision de rendement.")
 
 
@@ -900,7 +938,7 @@ with tab_pf:
 
         bloc_ia()
 
-        bloc_chatbot()
+        bloc_chat()
 
         if s["cash"] < -0.01:
             st.warning("Cash négatif : il manque des versements dans le journal "
