@@ -5,3 +5,4 @@ plotly>=5.20
 yfinance>=0.2.50
 supabase>=2.0
 requests>=2.31
+beautifulsoup4>=4.12

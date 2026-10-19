@@ -525,15 +525,15 @@ def onglet_watchlist() -> None:
         note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
         
         # Récupérer les KPIs
-        ticker_key = r.isin if r.isin in fonds else (tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None)
-        f = fonds.get(ticker_key, {})
+        ticker = tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None
+        f = fonds.get(ticker, {}) if ticker else {}
         
         with st.container(border=True):
             g, d, x = st.columns([5, 3, 1], vertical_alignment="center")
             
             # Nom avec lien vers publication
             nom = nom_de(tmap, r.isin)
-            url = r.url if hasattr(r, "url") and r.url and r.url.strip() else None
+            url = r.url if "url" in wl.columns and r.url and r.url.strip() else None
             if url:
                 g.markdown(f"**[{nom}]({url})**{note}")
             else:
