@@ -25,6 +25,7 @@ MAX_CHAT_PAR_JOUR = 30
 MAX_TOURS_CHAT = 10          # filet de sécurité : le prompt demande des réponses courtes
 MAX_TOKENS_CHAT = 2048
 MAX_MOTS_REPONSE = 300  # filet de sécurité : le prompt demande quelques phrases
+MAX_IMPORTS_PAR_JOUR = 5
 
 # Prompts éditables dans prompts.md (dépôt Git) : sections « ## analyse », « ## scenario », « ## chat ».
 # Sections absentes (ou fichier manquant) = valeurs par défaut définies ci-dessous dans le code.
