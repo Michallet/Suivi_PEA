@@ -42,15 +42,6 @@ def isin_valide(isin: str) -> bool:
     return total % 10 == 0
 
 
-def nettoyer_url(url) -> str | None:
-    """URL http(s) utilisable dans un lien Markdown, ou None (vide, NaN, schéma douteux comme javascript:)."""
-    if url is None or not isinstance(url, str):
-        return None
-    url = url.strip()
-    if not re.match(r"https?://[^\s/]+", url, flags=re.I):
-        return None
-    return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29")
-
 
 def formater_gros_nombre(x) -> str:
     """CA / capitalisation lisibles : M € (million), Md € (milliard), T € (millier de milliards)."""

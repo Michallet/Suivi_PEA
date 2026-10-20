@@ -42,58 +42,6 @@ def chercher_ticker(isin: str) -> dict | None:
             "nom": choix.get("shortname") or choix.get("longname") or choix["symbol"]}
 
 
-def _recherche_url(nom: str, ticker: str | None, isin: str | None) -> str | None:
-    """1) recherche web (DuckDuckGo, puis Bing si bloqué) classée par recherche.meilleur_lien ;
-    2) repli : site de l'émetteur indiqué par Yahoo (le plus souvent une page d'accueil)."""
-    import requests
-
-    en_tetes = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
-                "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.7"}
-    resultats = []
-    for q in R.requetes(nom, isin):
-        for _moteur, fabrique_url, extraire in R.MOTEURS:
-            try:
-                r = requests.get(fabrique_url(q), headers=en_tetes, timeout=6)
-                trouves = extraire(r.text) if r.status_code == 200 else []
-            except Exception:
-                trouves = []
-            if trouves:  # un moteur a répondu : inutile d'essayer le suivant pour cette requête
-                resultats += trouves
-                break
-    url = R.meilleur_lien(resultats, nom)
-    if url:
-        return url
-    if ticker:
-        try:
-            site = (yf.Ticker(ticker).info or {}).get("website")
-            if site and str(site).startswith(("http://", "https://")):
-                return str(site)
-        except Exception:
-            pass
-    return None
-
-
-@st.cache_data(ttl=24 * 3600, show_spinner=False)
-def _url_en_cache(nom: str, ticker: str | None, isin: str | None) -> str:
-    url = _recherche_url(nom, ticker, isin)
-    if not url:
-        raise LookupError(nom)  # une exception n'est jamais mise en cache : on réessaiera plus tard
-    return url
-
-
-def chercher_url_publication(nom: str, ticker: str | None = None, isin: str | None = None) -> str | None:
-    """URL de la publication financière d'un titre (recherche web, sans clé API), ou None.
-
-    Résultat mis en cache 24 h ; ne lève jamais d'exception.
-    """
-    if not nom or not str(nom).strip():
-        return None
-    try:
-        return _url_en_cache(str(nom).strip(), ticker, isin)
-    except Exception:
-        return None
-
-
 def lire_cours(ticker: str) -> dict:
     """Dernier cours, clôture précédente, devise. Valeurs None en cas d'échec (jamais 0)."""
     out = {"prix": None, "prev": None, "devise": None}
