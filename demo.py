@@ -1,8 +1,7 @@
-"""Mode démo : portefeuille FICTIF, 100 % en mémoire.
+"""Ancien magasin démo en mémoire, conservé pour les tests e2e historiques seulement.
 
-Aucune lecture/écriture en base, aucun appel Yahoo ni Gemini : un visiteur non connecté ne peut
-donc jamais atteindre vos données réelles. Les modifications faites en démo (scénarios, etc.)
-vivent dans la session du navigateur et disparaissent au rechargement.
+L'application utilise désormais le compte Supabase ``demo``. Initialiser ses données fictives
+avec ``seed_demo.sql`` ; app.py n'importe plus ce module.
 """
 from __future__ import annotations
 

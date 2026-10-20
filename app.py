@@ -1,9 +1,7 @@
-"""Suivi PEA — interface Streamlit mobile-first.
+"""Suivi PEA — interface Streamlit mobile-first multi-utilisateur.
 
-Local : streamlit run app.py   (secrets dans .streamlit/secrets.toml, voir secrets.toml.example)
-
-* Sans connexion : mode démo (données fictives, aucun accès à la base).
-* Avec le mot de passe : vos données réelles, saisie, watchlist, scénarios et analyse IA.
+Les comptes sont définis dans .streamlit/secrets.toml. Le compte demo partage un jeu de données
+fictif persistant et n'a pas accès aux fonctionnalités IA.
 """
 from __future__ import annotations
 
@@ -18,9 +16,9 @@ import streamlit as st
 import auth
 import calculs as C
 import db
-import demo
 import donnees as D
 import llm
+import recherche as R
 from schema import SCHEMA
 
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
@@ -109,33 +107,41 @@ def enregistrer_ticker(isin: str, ticker: str, nom: str | None = None) -> str | 
 
 
 # --------------------------------------------------------------------------- #
-# Mode (démo / réel) et en-tête
+# Authentification : tout compte connecté utilise Supabase ; seule l'IA est interdite en démo.
 # --------------------------------------------------------------------------- #
-reel = auth.connecte()
-store = db if reel else demo.DemoStore()
-marche_fn = D.cours_batch if reel else demo.cours_batch
-fonds_fn = D.fondamentaux_batch if reel else demo.fondamentaux_batch
+connecte = auth.connecte()
+mode_demo = auth.est_demo()
+
+if not connecte:
+    st.title("📈 Suivi PEA")
+    st.info("Connectez-vous pour accéder à un portefeuille. Les identifiants du compte démo "
+            "sont préremplis (demo / demo).")
+    auth.formulaire_connexion()
+    st.stop()
+
+# Les deux comptes (theo et demo) passent par le même stockage, filtré par db.py sur user_id.
+store = db
+marche_fn = D.cours_batch
+fonds_fn = D.fondamentaux_batch
 
 if "flash" in st.session_state:
     st.toast(st.session_state.pop("flash"))
 
-if reel:
-    t1, t2, t3 = st.columns([4, 1, 1], vertical_alignment="center")
-    t1.title("📈 Mon PEA")
-    if t2.button("🔄", help="Actualiser les cours"):
-        D.cours_batch.clear()
-        D.fondamentaux_batch.clear()
-        db.rafraichir()
-        st.rerun()
-    if t3.button("🔒", help="Se déconnecter"):
-        auth.deconnecter()
-        st.rerun()
-else:
-    st.title("📈 Mon PEA")
-    st.info("🧪 **Mode démo** : portefeuille fictif, rien n'est enregistré. "
-            "Connectez-vous pour accéder à vos données réelles.")
-    with st.expander("🔓 Se connecter"):
-        auth.formulaire_connexion()
+t1, t2, t3 = st.columns([4, 1, 1], vertical_alignment="center")
+t1.title("📈 Mon PEA")
+t1.caption(f"Compte : {auth.utilisateur()}")
+if mode_demo:
+    st.info("🧪 **Compte démo partagé** : portefeuille fictif persistant (les cours de marché peuvent être réels). "
+            "Les ajouts et suppressions sont visibles par tous les visiteurs du compte demo. "
+            "N'y saisissez aucune donnée personnelle. Les fonctions IA sont désactivées.")
+if t2.button("🔄", help="Actualiser les cours"):
+    D.cours_batch.clear()
+    D.fondamentaux_batch.clear()
+    db.rafraichir()
+    st.rerun()
+if t3.button("🔒", help="Se déconnecter"):
+    auth.deconnecter()
+    st.rerun()
 
 # --------------------------------------------------------------------------- #
 # Chargement des données
@@ -202,7 +208,7 @@ def charger_cours(isins: list[str]):
         prix, prev, statut = m.get("prix"), m.get("prev"), "live"
         if prix is None:
             prix, statut = dernier, ("obsolète" if dernier else "estimé")
-        elif reel and connu and (dernier is None or abs(dernier - prix) > 1e-9):
+        elif connecte and connu and (dernier is None or abs(dernier - prix) > 1e-9):
             maj.append({"isin": isin, "ticker": ticker, "nom": nom_de(tmap, isin),
                         "dernier_prix": prix, "dernier_prix_at": maintenant().isoformat()})
         lignes.append({"isin": isin, "ticker": ticker, "nom": nom_de(tmap, isin) if connu else None,
@@ -236,8 +242,8 @@ def prix_courant(isin: str):
 pos = enrichir_complet(positions)
 s = C.synthese(pos, flux, vers)
 
-# Mémorise les derniers cours et le point de courbe du jour (données réelles uniquement)
-if reel:
+# Mémorise les derniers cours et le point de courbe du jour pour le compte courant.
+if connecte:
     try:
         if maj_prix:
             db.upsert("tickers", maj_prix, "isin")
@@ -251,7 +257,7 @@ if reel:
     except Exception:
         pass  # un échec d'écriture ne doit jamais bloquer l'affichage
 
-manquants = sorted(set(trans["isin"]) - set(tmap.index)) if reel else []
+manquants = sorted(set(trans["isin"]) - set(tmap.index)) if connecte else []
 
 
 def ordre_isins() -> list[str]:
@@ -276,9 +282,26 @@ def choisir_isin(label: str, options: list[str], cle: str, nouveau: bool = True)
 # --------------------------------------------------------------------------- #
 # Fiches de lignes communes à Portefeuille, Projet et Watchlist
 # --------------------------------------------------------------------------- #
-def lien_md(nom: str) -> str:
-    """Ligne Markdown « 📰 Actualités » : recherche Google Actualités calculée sur le nom du titre."""
-    return f"  \n[📰 Actualités]({C.lien_actualites(nom)})"
+CONTEXTES_URL = ("pf", "pj", "wl")  # une clé de widget par onglet (même ISIN possible dans plusieurs)
+
+
+def url_publication(isin: str) -> str | None:
+    """Lien de publication d'un ISIN : tickers.url, sinon l'ancienne colonne watchlist.url."""
+    if "url" in tmap.columns and isin in tmap.index:
+        u = C.nettoyer_url(tmap.loc[isin, "url"])
+        if u:
+            return u
+    if "url" in wl.columns and not wl.empty:
+        sel = wl.loc[wl["isin"] == isin, "url"]
+        if len(sel):
+            return C.nettoyer_url(sel.iloc[0])
+    return None
+
+
+def lien_md(isin: str) -> str:
+    """Ligne Markdown « 📄 Publication » (vide si aucun lien)."""
+    u = url_publication(isin)
+    return f"  \n[📄 Publication]({u})" if u else ""
 
 
 def _present(x) -> bool:
@@ -303,6 +326,57 @@ def lignes_fondamentaux(f: dict) -> list[tuple[str, str]]:
     return [(lbl, fn(f[k])) for lbl, k, fn in defs if _present(f.get(k))]
 
 
+def enregistrer_url(isin: str, url: str | None) -> str | None:
+    """Mémorise (ou efface) l'URL d'un ISIN dans tickers. Retourne un message d'erreur ou None."""
+    try:
+        db.modifier("tickers", isin, {"url": url}, cle="isin")
+    except Exception:
+        return ("URL non enregistrée : exécutez dans Supabase « alter table tickers "
+                "add column if not exists url text; »")
+    return None
+
+
+def _enregistrer_url_cb(isin: str, cle: str) -> None:
+    brut = st.session_state.get(cle, "").strip()
+    url = C.nettoyer_url(brut) if brut else None
+    if brut and not url:
+        flash("URL invalide : elle doit commencer par http:// ou https://.")
+        return
+    err = enregistrer_url(isin, url)
+    if err:
+        flash(err)
+        return
+    for ctx in CONTEXTES_URL:  # garde les éditeurs des autres onglets synchronisés
+        if f"url_{ctx}_{isin}" in st.session_state:
+            st.session_state[f"url_{ctx}_{isin}"] = url or ""
+    flash("Lien enregistré ✅" if url else "Lien supprimé")
+
+
+def _chercher_url_cb(cle: str, nom: str, ticker, isin: str) -> None:
+    url = D.chercher_url_publication(nom, ticker if isinstance(ticker, str) else None, isin)
+    if url:
+        st.session_state[cle] = url
+        flash("Seule la page d'accueil a été trouvée : précisez l'URL à la main si besoin."
+              if R.est_page_accueil(url) else "URL trouvée : vérifiez-la puis enregistrez.")
+    else:
+        flash("Aucune URL trouvée : saisissez-la manuellement.")
+
+
+def editeur_url(isin: str, ctx: str) -> None:
+    """Champ « URL de publication » du compte courant avec enregistrement et recherche."""
+    if not connecte:
+        return
+    cle = f"url_{ctx}_{isin}"
+    if cle not in st.session_state:
+        st.session_state[cle] = url_publication(isin) or ""
+    st.text_input("URL de publication", key=cle, placeholder="https://…")
+    ticker = tmap.loc[isin, "ticker"] if isin in tmap.index else None
+    c1, c2 = st.columns(2)
+    c1.button("💾 Enregistrer", key=cle + "_ok", on_click=_enregistrer_url_cb, args=(isin, cle))
+    c2.button("🔍 Chercher", key=cle + "_q", on_click=_chercher_url_cb,
+              args=(cle, nom_de(tmap, isin), ticker, isin), help="Recherche web de la publication financière")
+
+
 def carte_ligne(r, ctx: str) -> None:
     """Carte d'une ligne détenue (réelle ou projetée) : synthèse, lien, détails + fondamentaux."""
     badge = "" if r.statut == "live" else f" ⚠️ {r.statut}"
@@ -310,7 +384,7 @@ def carte_ligne(r, ctx: str) -> None:
     total = pastille(r.perf_pct, f"{fmt(r.perf_pct, 1, True)} % total")
     with st.container(border=True):
         g, d = st.columns([3, 2])
-        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %{lien_md(r.nom)}")
+        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %{lien_md(r.isin)}")
         d.markdown(f"<div style='text-align:right'><b>{fmt(r.valeur)} €</b><br>"
                    f"{jour}<br>{total}</div>", unsafe_allow_html=True)
         with st.expander("Détails"):
@@ -323,6 +397,7 @@ def carte_ligne(r, ctx: str) -> None:
                        + lignes_fondamentaux(f)
                        + [("ISIN · ticker", f"{r.isin} · {r.ticker}")])
             st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
+            editeur_url(r.isin, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -352,9 +427,9 @@ def bloc_ia() -> None:
         st.markdown("#### ✨ Analyse IA")
         derniere = None if analyses.empty else analyses.sort_values("id").iloc[-1]
 
-        if not reel:
+        if mode_demo:
             st.button("✨ Analyser mon portefeuille", disabled=True, key="ia_btn_demo")
-            st.caption("Exemple fictif (aucun appel IA en mode démo). Connectez-vous pour analyser votre PEA.")
+            st.caption("Exemple fictif : aucun appel IA en mode démo. Passez sur un compte personnel pour analyser votre portefeuille.")
             afficher_analyse(llm.EXEMPLE, maintenant(), False)
             return
         if pos.empty:
@@ -402,7 +477,7 @@ def bloc_ia_scenario(sid: int, pos_p: pd.DataFrame, cash_p: float,
     """Analyse IA du scénario : note les 4 critères du projeté + avantages/inconvénients vs actuel."""
     with st.container(border=True):
         st.markdown("#### ✨ Analyse IA du scénario")
-        if not reel:
+        if mode_demo:
             st.button("✨ Analyser ce scénario", disabled=True, key="ias_btn_demo")
             st.caption("Exemple fictif (aucun appel IA en mode démo).")
             afficher_analyse(llm.EXEMPLE_SCENARIO, maintenant(), False, scenario=True)
@@ -508,12 +583,13 @@ def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
               operations: str = "", versement: float = 0.0) -> None:
     """Chatbot : discussion libre sur le portefeuille actuel ou sur un scénario projeté.
     Une conversation distincte par scénario (clé de session dédiée)."""
-    cle_session = f"chat_scen_{sid}" if scenario else "chat_msgs"
+    uid = auth.utilisateur() or "inconnu"
+    cle_session = f"chat_{uid}_scen_{sid}" if scenario else f"chat_{uid}_msgs"
     titre = "#### 💬 Discuter de ce scénario" if scenario else "#### 💬 Discuter de mon portefeuille"
     with st.container(border=True):
         st.markdown(titre)
-        if not reel:
-            st.caption("Disponible après connexion (et avec `GEMINI_API_KEY` dans les secrets).")
+        if mode_demo:
+            st.caption("Chat IA désactivé sur le compte démo pour éviter toute consommation de tokens.")
             return
         if pos.empty:
             st.caption("Aucune ligne dans le portefeuille.")
@@ -580,7 +656,7 @@ def onglet_watchlist() -> None:
 
         with st.container(border=True):
             g, d = st.columns([3, 2])
-            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}{lien_md(nom_de(tmap, r.isin))}")
+            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}{lien_md(r.isin)}")
             txt = f"<b>{fmt(prix)} €</b>" if prix and not pd.isna(prix) else "N/A"
             if var is not None:
                 txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} % auj.")
@@ -589,34 +665,47 @@ def onglet_watchlist() -> None:
                 details = ([("Cours", f"{fmt(prix)} €")] + lignes_fondamentaux(f)
                            + [("ISIN · ticker", f"{r.isin} · {ticker or '—'}")])
                 st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
-                if reel and st.button("🗑 Retirer de la watchlist", key=f"wl_del_{r.isin}"):
+                editeur_url(r.isin, "wl")
+                if connecte and st.button("🗑 Retirer de la watchlist", key=f"wl_del_{r.isin}"):
                     store.supprimer("watchlist", r.isin, cle="isin")
+                    st.session_state.pop(f"url_wl_{r.isin}", None)
                     flash("Retiré de la watchlist")
                     st.rerun()
 
     with st.expander("➕ Ajouter une action / un ETF"):
-        if not reel:
+        if not connecte:
             st.caption("Disponible après connexion.")
             return
         # Remise à zéro des champs après un ajout (autorisée ici : avant la création des widgets)
         if st.session_state.pop("wl_reset", False):
-            for k in ("wl_isin", "wl_tk", "wl_note"):
+            for k in ("wl_isin", "wl_tk", "wl_note", "wl_url"):
                 st.session_state[k] = ""
         st.text_input("ISIN", placeholder="FR0000121014", key="wl_isin")
         st.text_input("Ticker Yahoo (facultatif)", key="wl_tk",
                       placeholder="ex : MC.PA — si l'ISIN n'est pas reconnu")
         st.text_input("Note (facultatif)", key="wl_note")
-        ajouter = st.button("Ajouter", key="wl_add", type="primary")
+        st.text_input("URL de publication (facultatif)", key="wl_url",
+                      placeholder="ex : https://investor.societe.com")
+        c_add, c_cherche = st.columns(2)
+        ajouter = c_add.button("Ajouter", key="wl_add", type="primary")
+        c_cherche.button("🔍 Chercher l'URL", key="wl_cherche", on_click=_chercher_url_wl,
+                         args=(tmap,), help="Recherche web de la publication financière")
+        if msg := st.session_state.pop("wl_msg", None):
+            st.info(msg)
 
         if ajouter:
             isin = st.session_state.get("wl_isin", "").strip().upper()
             tk = st.session_state.get("wl_tk", "").strip().upper()
             note = st.session_state.get("wl_note", "").strip()
-            if not C.isin_valide(isin):
+            url_saisie = C.nettoyer_url(st.session_state.get("wl_url", ""))
+            if st.session_state.get("wl_url", "").strip() and not url_saisie:
+                st.error("URL invalide : elle doit commencer par http:// ou https://.")
+            elif not C.isin_valide(isin):
                 st.error("ISIN invalide (12 caractères, clé de contrôle incorrecte).")
             elif isin in wl["isin"].tolist():
                 st.info("Déjà dans la watchlist.")
             else:
+                trouve = None
                 if isin not in tmap.index or tk:
                     trouve = None if tk else D.chercher_ticker(isin)
                     ticker = tk or (trouve or {}).get("ticker")
@@ -625,10 +714,38 @@ def onglet_watchlist() -> None:
                     if err:
                         st.error(err)
                         return
+                url_value = url_saisie
+                if url_value is None:  # recherche automatique (silencieuse en cas d'échec)
+                    nom = (nom_de(tmap, isin) if isin in tmap.index else (trouve or {}).get("nom"))
+                    ticker_url = tmap.loc[isin, "ticker"] if isin in tmap.index else tk or None
+                    url_value = D.chercher_url_publication(nom, ticker_url, isin) if nom else None
                 db.upsert("watchlist", [{"isin": isin, "note": note or None}], "isin")
+                msg = "Ajouté à la watchlist ✅"
+                if url_value:
+                    err_url = enregistrer_url(isin, url_value)
+                    if err_url:
+                        msg += " — " + err_url
                 st.session_state["wl_reset"] = True
-                flash("Ajouté à la watchlist ✅")
+                flash(msg)
                 st.rerun()
+
+
+def _chercher_url_wl(tmap_: pd.DataFrame) -> None:
+    """Callback du bouton « Chercher l'URL » : remplit le champ URL (modifiable ici, pas après coup)."""
+    isin = st.session_state.get("wl_isin", "").strip().upper()
+    if not C.isin_valide(isin):
+        st.session_state["wl_msg"] = "Saisissez d'abord un ISIN valide."
+        return
+    if isin in tmap_.index:
+        nom, ticker = nom_de(tmap_, isin), tmap_.loc[isin, "ticker"]
+    else:
+        trouve = D.chercher_ticker(isin) or {}
+        nom, ticker = trouve.get("nom"), trouve.get("ticker")
+    url = D.chercher_url_publication(nom, ticker, isin) if nom else None
+    if url:
+        st.session_state["wl_url"] = url
+    else:
+        st.session_state["wl_msg"] = "Aucune URL trouvée : saisissez-la manuellement."
 
 
 # --------------------------------------------------------------------------- #
@@ -789,10 +906,10 @@ def onglet_projet() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Onglet Saisie (données réelles uniquement)
+# Onglet Saisie (tous les comptes connectés)
 # --------------------------------------------------------------------------- #
 def onglet_saisie() -> None:
-    if not reel:
+    if not connecte:
         st.info("🔒 La saisie est disponible après connexion.")
         return
     action = st.selectbox("Action", ["Transaction", "Dividende", "Versement / retrait", "Secteurs",
@@ -1023,8 +1140,8 @@ with tab_pf:
             if not hors_ligne.empty:
                 st.warning("Cours indisponibles pour " + ", ".join(hors_ligne["nom"])
                            + " : dernier cours connu ou prix de revient utilisé.")
-            st.caption(("Cours Yahoo différés" if reel else "Cours fictifs")
-                       + f" · actualisés à {horodatage:%H:%M}" + (" (cache 5 min)" if reel else ""))
+            st.caption(("Cours Yahoo différés" if connecte else "Cours fictifs")
+                       + f" · actualisés à {horodatage:%H:%M}" + (" (cache 5 min)" if connecte else ""))
 
             # -- Une carte par ligne (lisible sur téléphone) ---------------- #
             for r in pos.sort_values("valeur", ascending=False).itertuples():
@@ -1125,7 +1242,7 @@ with tab_hist:
             choix = st.selectbox("Comparer à", list(BENCHMARKS), label_visibility="collapsed")
             twr = C.calcul_twr(sn)
             bench = None
-            if reel:  # pas d'appel réseau en mode démo
+            if connecte:  # le compte demo utilise aussi les cours et historiques Yahoo
                 try:
                     h = D.historique_cloture(BENCHMARKS[choix], sn["date"].min().strftime("%Y-%m-%d"))
                     bench = h.reindex(h.index.union(twr["date"])).ffill().reindex(twr["date"]).bfill()

@@ -1,5 +1,5 @@
 # CONTEXTE.md — Suivi PEA (pour reprise avec Claude)
-**Dernière mise à jour** : 20/10/2026 · **Version du code** : v8 (fondamentaux + lien Actualités partout) · **Langue** : français
+**Dernière mise à jour** : 20/10/2026 · **Version du code** : v7 (audit + fondamentaux/liens partout) · **Langue** : français
 
 ---
 
@@ -25,9 +25,9 @@ Il résume l'état actuel du projet, les dernières modifications, et les points
 - ✅ **Sécurité** :
   - **Aucun secret** dans le code (tout via `st.secrets`)
   - **Dépôt public** ⇒ zéro donnée perso/réelle dans le code
-  - **Mode démo** = aucun accès base/Yahoo/Gemini (fonctionne sans connexion)
+  - **Compte demo** = données fictives persistantes et partagées dans Supabase ; fonctions IA bloquées
 - ✅ **Simplicité** : réponses concises, UX épurée
-- ✅ **Mono-utilisateur** (multi-utilisateur reporté)
+- ✅ **Multi-utilisateur** : `theo`, `demo` et quelques comptes supplémentaires via les secrets Streamlit
 
 ---
 
@@ -38,11 +38,11 @@ app.py          # UI Streamlit (1068+ l.) : 5 onglets + bloc_ia + bloc_chat
 calculs.py      # Calculs purs : PRM, PV, cash, TWR, scénarios
 llm.py          # Gemini : analyse IA, chat, validation format
 prompts.md      # Prompts externalisés pour l'IA
- db.py          # Supabase : lecture/écriture (cache 2 min)
-schema.sql      # Schéma base (idempotent, RLS activé)
+db.py           # Supabase : lecture/écriture cloisonnées par user_id (cache 2 min)
+schema.sql      # Schéma et migration multi-utilisateur (RLS activé)
+seed_demo.sql   # Portefeuille fictif initial du compte demo (à exécuter une seule fois)
 donnees.py      # Yahoo Finance : cours, fondamentaux, historiques
- demo.py        # Mode démo 100 % mémoire (aucune I/O)
- auth.py        # Auth mono-utilisateur (APP_PASSWORD)
+auth.py         # Authentification (comptes définis dans st.secrets)
 
 Tables Supabase :
 - transactions, dividendes, versements
@@ -62,8 +62,13 @@ Tables Supabase :
 - **UI** : Champ "URL de publication" dans le formulaire d'ajout à la watchlist
 - **Affichage** : Noms cliquables (liens Markdown) : `**[{nom}]({url})**`
 
-#### 2. **Liens d'actualités (remplace la recherche d'URL)**
-- `calculs.lien_actualites(nom)` → recherche Google Actualités « <nom> bourse », affichée en « 📰 Actualités » sur chaque carte. Aucun appel réseau serveur, aucune saisie.
+#### 2. **Recherche automatique d'URL**
+- **Fonction** : `donnees.chercher_url_publication(nom: str) -> str | None`
+  - Effectue une **recherche Google** pour `"{nom} Financial report"`
+  - Retourne le **1er résultat organique** (via `requests` + `BeautifulSoup`)
+  - **Dépendance** : `beautifulsoup4>=4.12` (ajouté à `requirements.txt`)
+- **Bouton** : "🔍 Rechercher" dans le formulaire watchlist → pré-remplit le champ URL
+- **Auto-remplissage** : Si URL non fournie à l'ajout, tentative automatique via le nom
 
 #### 3. **KPIs étendus par type de titre**
 - **ETF** :
@@ -84,7 +89,7 @@ Tables Supabase :
 |----------|-------|--------------------------------|
 | KPIs non affichés | `fonds` indexé par **ticker**, pas ISIN | Utilisation de `tmap.loc[isin, "ticker"]` |
 | Erreur colonne `url` | `hasattr(r, "url")` inefficace sur namedtuple | Remplacé par `"url" in wl.columns` |
-| Dépendances manquantes | `beautifulsoup4` non installé | plus nécessaire en v8 (recherche supprimée) |
+| Dépendances manquantes | `beautifulsoup4` non installé | Ajout dans `requirements.txt` |
 
 ---
 
@@ -95,23 +100,23 @@ Tables Supabase :
 | `schema.py` : `watchlist` sans `url` ⇒ `db.lire` **ignorait la colonne** (liens jamais affichés, démo incluse) | colonne ajoutée ; `demo.py` aligné (4 colonnes) |
 | `r.url.strip()` plantait si la valeur était NaN/None | `calculs.nettoyer_url()` (refuse aussi `javascript:`, échappe les parenthèses Markdown) |
 | Bouton « Rechercher » : posait une clé `wl_url_{isin}` jamais lue + 2 boutons dans un `st.form` | formulaire remplacé par des widgets à clés + callback `_chercher_url_wl` |
-| Recherche d'URL par scraping Google (bloqué/CAPTCHA, non testé) | supprimée en v8 : lien Google Actualités calculé |
+| Recherche d'URL par scraping Google (bloqué/CAPTCHA, non testé) | DuckDuckGo « html » (sans clé) + repli sur `info["website"]` de Yahoo, cache 24 h, ne lève jamais |
 | « EV/EBITDA » calculé avec `marketCap` en repli (ratio faux sous un mauvais nom) | uniquement avec `enterpriseValue`, sinon non affiché |
 | Absents du dépôt : `tests/`, `.streamlit/secrets.toml.example`, `.gitignore` | recréés (`tests/test_calculs.py`, `tests/test_schema.py` — 9 tests, **pas les 47 d'origine**) |
 | `requirements-1.txt` : doublon obsolète (sans bs4) | à supprimer à la main sur GitHub |
 
-**Non vérifié** : rendu Streamlit réel, Yahoo/Supabase (pas de réseau ni de Streamlit dans l'environnement d'audit).
+**Non vérifié** : rendu Streamlit réel, DuckDuckGo en direct, Yahoo/Supabase (pas de réseau ni de Streamlit dans l'environnement d'audit).
 **Alerte confidentialité** : `seed_pea.sql` et `CONTEXTE.md` §4 contiennent les positions/PRM/montants réels dans un dépôt public (contraire au §2) : les retirer **et** tenir compte que l'historique Git les conserve.
 Lancer : `pip install -r requirements-dev.txt && pytest -q`.
 
 ---
 
-## 5️⃣ter **v7/v8 (20/10/2026) — fondamentaux et liens partout**
+## 5️⃣ter **v7 (20/10/2026) — fondamentaux et liens partout**
 
 - **Fiche commune** (`app.py` : `carte_ligne`, `lignes_fondamentaux`) utilisée par **Portefeuille**, **Projet** (nouveau bloc « Lignes du scénario ») et **Watchlist** : mêmes lignes, valeurs absentes omises.
   Ordre : PER · PER prévisionnel · CA · Bénéfice net · EBITDA · Capitalisation · Valeur d'entreprise · EV/EBITDA · Actifs sous gestion · Frais annuels (+ quantité/PRM/+-value/dividendes hors watchlist).
-- **Lien « 📰 Actualités »** sur chaque carte (Portefeuille, Projet, Watchlist) : recherche Google Actualités « <nom> bourse » **calculée par le front** (`calculs.lien_actualites`). Plus de saisie ni de recherche d'URL (DuckDuckGo/Bing/bs4 supprimés, `beautifulsoup4` retiré de `requirements.txt`).
-- Colonnes `tickers.url` / `watchlist.url` **conservées en base mais inutilisées** (le `alter table` de `schema.sql` reste valable, sans obligation de l'exécuter).
+- **URL de publication = par ISIN dans `tickers.url`** (plus dans `watchlist.url`, encore lue en repli). Lien « 📄 Publication » visible sur chaque carte ; champ modifiable (💾 / 🔍) dans « Détails » de chaque carte, y compris pour les lignes déjà en watchlist ou détenues.
+- **SQL à exécuter une fois** : `alter table tickers add column if not exists url text;` (déjà ajouté à `schema.sql`).
 - Bug corrigé : `**prix**` affiché tel quel dans la watchlist (Markdown dans un bloc HTML) ; bouton ✖ qui passait sous la carte sur mobile (déplacé dans « Détails »).
 - `db.modifier(table, id_, rec, cle="id")` : UPDATE par clé (ne pas utiliser `upsert` partiel sur `tickers` : `ticker` est NOT NULL).
 - Nouveaux champs Yahoo : `per_prev` (forwardPE), `ev` (enterpriseValue). Cache fondamentaux 6 h : reboot ou 🔄 pour les voir.
@@ -121,7 +126,11 @@ Lancer : `pip install -r requirements-dev.txt && pytest -q`.
 
 ## 6️⃣ **Problèmes connus / À améliorer**
 
-### ✅ **Liens d'actualités** : simple lien Google Actualités calculé sur le nom ; aucune dépendance réseau côté serveur.
+### ⚠️ **Recherche d'URL de publication (automatique)**
+- **Risque** : DuckDuckGo (remplace Google depuis le 20/10) peut aussi bloquer les IP de Streamlit Cloud ; repli sur le site Yahoo, sinon saisie manuelle
+- **Ne PAS passer par l'API Google Custom Search** : fermée aux nouveaux clients et supprimée le 01/01/2027 (vérifié le 20/10/2026).
+- **Implémentation actuelle (v7.1)** : `recherche.py` (pur, testé) construit 2 requêtes (publications + rapport PDF ; ETF : fiche produit/DIC avec l'ISIN), interroge DuckDuckGo puis Bing (HTML, sans clé), et **classe** les résultats (PDF/mots « results, annual, investor… » favorisés, pages d'accueil, Wikipédia, LinkedIn… pénalisés, bonus si le domaine porte le nom de l'émetteur). Repli : `info["website"]` Yahoo = **page d'accueil** (l'app prévient alors).
+- **Jamais testé en direct** (pas de réseau en dev) : si les liens restent des pages d'accueil, les moteurs bloquent probablement les IP de Streamlit Cloud ⇒ saisie manuelle, ou service de recherche à clé (Brave Search API, SerpApi… à vérifier avant).
 
 ### ⚠️ **KPIs EV/EBITDA**
 - **Calcul** : `enterpriseValue / ebitda` uniquement (plus de repli sur `marketCap`)
@@ -150,14 +159,23 @@ Lancer : `pip install -r requirements-dev.txt && pytest -q`.
 ## 8️⃣ **Secrets Streamlit (à configurer)**
 
 ```toml
-# .streamlit/secrets.toml
-APP_PASSWORD = "votre_mot_de_passe"          # Obligatoire pour accéder aux données réelles
+# .streamlit/secrets.toml ; ne jamais pousser ce fichier dans Git
 SUPABASE_URL = "https://votre-projet.supabase.co"
-SUPABASE_KEY = "votre_clé_service_role"      # !!! PAS la clé anon !!!
-GEMINI_API_KEY = "votre_clé_Gemini"          # Optionnel (désactive l'IA si absent)
+SUPABASE_KEY = "votre_clé_service_role" # secret serveur uniquement, jamais la clé anon
+GEMINI_API_KEY = "votre_clé_Gemini"    # facultatif ; inactif pour le compte demo
+
+[users.demo]
+password = "demo"
+demo = true
+
+[users.theo]
+password = "un_mot_de_passe_long_et_unique"
+demo = false
 ```
 
-**⚠️ IMPORTANT** : Sans `APP_PASSWORD`, l'app reste en **mode démo** (données fictives).
+Ajouter les comptes suivants sous la forme `[users.identifiant]`, avec `password` et `demo = false`. Les secrets d'identification restent dans Streamlit ; ils ne sont pas stockés dans Supabase.
+
+**Migration** : sauvegarder la base, exécuter `schema.sql` dans Supabase, puis exécuter `seed_demo.sql` une seule fois. Les lignes existantes seront attribuées à `theo`. Le compte `demo/demo` est partagé et modifiable par tous les visiteurs qui l'utilisent ; ne jamais y saisir d'informations personnelles.
 
 ---
 
@@ -166,13 +184,13 @@ GEMINI_API_KEY = "votre_clé_Gemini"          # Optionnel (désactive l'IA si ab
 ### 🔴 **À ne JAMAIS faire**
 - ❌ Pousser des **secrets** dans le dépôt
 - ❌ Pousser des **données réelles** (ex: `seed_pea.sql`, positions, montants)
-- ❌ Casser le **mode démo** (doit fonctionner sans connexion/base/Yahoo/Gemini)
+- ❌ Permettre au compte `demo` d’appeler l’IA, ou de lire les données d’un autre compte
 - ❌ Ajouter des dépendances payantes
 - ❌ Modifier les **règles métier** (§6 du CONTEXTE original)
 
 ### 🟢 **À toujours faire**
 - ✅ **Tester en local** : `streamlit run app.py` (avec `.streamlit/secrets.toml`)
-- ✅ **Tester le mode démo** : Sans secrets, l'app doit démarrer et afficher des données fictives
+- ✅ **Tester le compte démo** : après migration et initialisation, `demo/demo` peut modifier son jeu fictif sans appeler Gemini
 - ✅ **Vérifier les imports** : `python3 -m py_compile app.py donnees.py`
 - ✅ **Respecter le mobile-first** : Pas de tableaux larges, pas de zoom tactile
 - ✅ **Mettre à jour ce fichier** à chaque livraison
@@ -186,7 +204,9 @@ GEMINI_API_KEY = "votre_clé_Gemini"          # Optionnel (désactive l'IA si ab
 
 ## 🔟 **Prochaines étapes suggérées**
 
-### ✅ Recherche d'URL : abandonnée au profit du lien Google Actualités (v8)
+### 🎯 **Priorité 1 : Stabiliser la recherche URL**
+- [x] ~~Remplacer par Google Custom Search~~ (API fermée) → classement multi-moteurs fait (v7.1)
+- [ ] Gérer les erreurs de recherche (timeout, CAPTCHA)
 - [ ] Ajouter un cache pour les URLs trouvées (éviter les requêtes répétées)
 
 ### 🎯 **Priorité 2 : Améliorer les KPIs**
@@ -228,10 +248,17 @@ pip install -r requirements.txt
 # Créer les secrets (exemple)
 mkdir -p .streamlit
 cat > .streamlit/secrets.toml <<EOF
-APP_PASSWORD = "test123"
 SUPABASE_URL = "https://votre-projet.supabase.co"
 SUPABASE_KEY = "votre_clé"
 GEMINI_API_KEY = ""
+
+[users.demo]
+password = "demo"
+demo = true
+
+[users.theo]
+password = "test123"
+demo = false
 EOF
 
 # Lancer l'app
@@ -248,8 +275,8 @@ streamlit run app.py
 6. `llm.py` (IA)
 
 ### 3. **Debugger**
-- **Mode démo** : Lancer sans secrets → données fictives
-- **Mode réel** : Ajouter `APP_PASSWORD` dans `secrets.toml`
+- **Compte démo** : configurer Supabase, exécuter `seed_demo.sql`, puis se connecter avec `demo/demo`
+- **Compte personnel** : configurer `[users.theo]` dans `secrets.toml`
 - **Logs** : Streamlit affiche les erreurs dans le terminal
 
 ### 4. **Contribuer**
@@ -274,3 +301,14 @@ streamlit run app.py
 ---
 
 *Ce fichier est conçu pour permettre à Claude (ou tout autre modèle) de reprendre le projet sans perte de contexte.*
+
+
+## 🔐 Multi-utilisateur v8 (20/10/2026)
+
+- `auth.py` gère les identifiants définis dans `.streamlit/secrets.toml`, sous `[users.demo]`, `[users.theo]`, etc.
+- Les champs de connexion sont préremplis `demo` / `demo`. Les utilisateurs non connectés n'accèdent à aucune donnée.
+- Tous les enregistrements Supabase ont un `user_id`. `db.py` ajoute le compte courant aux écritures et filtre chaque lecture, mise à jour, suppression et upsert. Le cache de lecture est partitionné par utilisateur.
+- La migration `schema.sql` attribue les lignes historiques à `theo`, puis passe les clés concernées en clés composites. Exécuter ce fichier dans Supabase avant de déployer le code.
+- Exécuter ensuite `seed_demo.sql` une seule fois pour créer le portefeuille fictif persistant. Le compte demo est partagé : toutes les modifications sont visibles par les visiteurs qui se connectent avec `demo/demo`. Ne jamais y enregistrer de données personnelles.
+- L'analyse de portefeuille, l'analyse de scénario et le chatbot IA sont désactivés pour `demo`; les transactions, dividendes, versements, watchlist, secteurs et scénarios restent modifiables.
+- Les anciens secrets `APP_PASSWORD` sont encore lus comme mot de passe de `theo` si aucun compte `[users.theo]` n'est configuré, pour faciliter la transition. Migrer de préférence vers le bloc `[users.theo]`.
