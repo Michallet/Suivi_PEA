@@ -12,7 +12,6 @@ import pandas as pd
 import streamlit as st
 import yfinance as yf
 
-import recherche as R
 
 # Places européennes cotées en € (le PEA impose des titres européens)
 SUFFIXES_EUR = (".PA", ".AS", ".BR", ".MI", ".DE", ".MC", ".LS", ".HE", ".IR", ".VI")
