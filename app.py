@@ -21,7 +21,6 @@ import db
 import demo
 import donnees as D
 import llm
-import recherche as R
 from schema import SCHEMA
 
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
@@ -277,26 +276,9 @@ def choisir_isin(label: str, options: list[str], cle: str, nouveau: bool = True)
 # --------------------------------------------------------------------------- #
 # Fiches de lignes communes à Portefeuille, Projet et Watchlist
 # --------------------------------------------------------------------------- #
-CONTEXTES_URL = ("pf", "pj", "wl")  # une clé de widget par onglet (même ISIN possible dans plusieurs)
-
-
-def url_publication(isin: str) -> str | None:
-    """Lien de publication d'un ISIN : tickers.url, sinon l'ancienne colonne watchlist.url."""
-    if "url" in tmap.columns and isin in tmap.index:
-        u = C.nettoyer_url(tmap.loc[isin, "url"])
-        if u:
-            return u
-    if "url" in wl.columns and not wl.empty:
-        sel = wl.loc[wl["isin"] == isin, "url"]
-        if len(sel):
-            return C.nettoyer_url(sel.iloc[0])
-    return None
-
-
-def lien_md(isin: str) -> str:
-    """Ligne Markdown « 📄 Publication » (vide si aucun lien)."""
-    u = url_publication(isin)
-    return f"  \n[📄 Publication]({u})" if u else ""
+def lien_md(nom: str) -> str:
+    """Ligne Markdown « 📰 Actualités » : recherche Google Actualités calculée sur le nom du titre."""
+    return f"  \n[📰 Actualités]({C.lien_actualites(nom)})"
 
 
 def _present(x) -> bool:
@@ -321,57 +303,6 @@ def lignes_fondamentaux(f: dict) -> list[tuple[str, str]]:
     return [(lbl, fn(f[k])) for lbl, k, fn in defs if _present(f.get(k))]
 
 
-def enregistrer_url(isin: str, url: str | None) -> str | None:
-    """Mémorise (ou efface) l'URL d'un ISIN dans tickers. Retourne un message d'erreur ou None."""
-    try:
-        db.modifier("tickers", isin, {"url": url}, cle="isin")
-    except Exception:
-        return ("URL non enregistrée : exécutez dans Supabase « alter table tickers "
-                "add column if not exists url text; »")
-    return None
-
-
-def _enregistrer_url_cb(isin: str, cle: str) -> None:
-    brut = st.session_state.get(cle, "").strip()
-    url = C.nettoyer_url(brut) if brut else None
-    if brut and not url:
-        flash("URL invalide : elle doit commencer par http:// ou https://.")
-        return
-    err = enregistrer_url(isin, url)
-    if err:
-        flash(err)
-        return
-    for ctx in CONTEXTES_URL:  # garde les éditeurs des autres onglets synchronisés
-        if f"url_{ctx}_{isin}" in st.session_state:
-            st.session_state[f"url_{ctx}_{isin}"] = url or ""
-    flash("Lien enregistré ✅" if url else "Lien supprimé")
-
-
-def _chercher_url_cb(cle: str, nom: str, ticker, isin: str) -> None:
-    url = D.chercher_url_publication(nom, ticker if isinstance(ticker, str) else None, isin)
-    if url:
-        st.session_state[cle] = url
-        flash("Seule la page d'accueil a été trouvée : précisez l'URL à la main si besoin."
-              if R.est_page_accueil(url) else "URL trouvée : vérifiez-la puis enregistrez.")
-    else:
-        flash("Aucune URL trouvée : saisissez-la manuellement.")
-
-
-def editeur_url(isin: str, ctx: str) -> None:
-    """Champ « URL de publication » (données réelles uniquement) avec enregistrement et recherche."""
-    if not reel:
-        return
-    cle = f"url_{ctx}_{isin}"
-    if cle not in st.session_state:
-        st.session_state[cle] = url_publication(isin) or ""
-    st.text_input("URL de publication", key=cle, placeholder="https://…")
-    ticker = tmap.loc[isin, "ticker"] if isin in tmap.index else None
-    c1, c2 = st.columns(2)
-    c1.button("💾 Enregistrer", key=cle + "_ok", on_click=_enregistrer_url_cb, args=(isin, cle))
-    c2.button("🔍 Chercher", key=cle + "_q", on_click=_chercher_url_cb,
-              args=(cle, nom_de(tmap, isin), ticker, isin), help="Recherche web de la publication financière")
-
-
 def carte_ligne(r, ctx: str) -> None:
     """Carte d'une ligne détenue (réelle ou projetée) : synthèse, lien, détails + fondamentaux."""
     badge = "" if r.statut == "live" else f" ⚠️ {r.statut}"
@@ -379,7 +310,7 @@ def carte_ligne(r, ctx: str) -> None:
     total = pastille(r.perf_pct, f"{fmt(r.perf_pct, 1, True)} % total")
     with st.container(border=True):
         g, d = st.columns([3, 2])
-        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %{lien_md(r.isin)}")
+        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %{lien_md(r.nom)}")
         d.markdown(f"<div style='text-align:right'><b>{fmt(r.valeur)} €</b><br>"
                    f"{jour}<br>{total}</div>", unsafe_allow_html=True)
         with st.expander("Détails"):
@@ -392,7 +323,6 @@ def carte_ligne(r, ctx: str) -> None:
                        + lignes_fondamentaux(f)
                        + [("ISIN · ticker", f"{r.isin} · {r.ticker}")])
             st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
-            editeur_url(r.isin, ctx)
 
 
 # --------------------------------------------------------------------------- #
@@ -650,7 +580,7 @@ def onglet_watchlist() -> None:
 
         with st.container(border=True):
             g, d = st.columns([3, 2])
-            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}{lien_md(r.isin)}")
+            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}{lien_md(nom_de(tmap, r.isin))}")
             txt = f"<b>{fmt(prix)} €</b>" if prix and not pd.isna(prix) else "N/A"
             if var is not None:
                 txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} % auj.")
@@ -659,10 +589,8 @@ def onglet_watchlist() -> None:
                 details = ([("Cours", f"{fmt(prix)} €")] + lignes_fondamentaux(f)
                            + [("ISIN · ticker", f"{r.isin} · {ticker or '—'}")])
                 st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
-                editeur_url(r.isin, "wl")
                 if reel and st.button("🗑 Retirer de la watchlist", key=f"wl_del_{r.isin}"):
                     store.supprimer("watchlist", r.isin, cle="isin")
-                    st.session_state.pop(f"url_wl_{r.isin}", None)
                     flash("Retiré de la watchlist")
                     st.rerun()
 
@@ -672,34 +600,23 @@ def onglet_watchlist() -> None:
             return
         # Remise à zéro des champs après un ajout (autorisée ici : avant la création des widgets)
         if st.session_state.pop("wl_reset", False):
-            for k in ("wl_isin", "wl_tk", "wl_note", "wl_url"):
+            for k in ("wl_isin", "wl_tk", "wl_note"):
                 st.session_state[k] = ""
         st.text_input("ISIN", placeholder="FR0000121014", key="wl_isin")
         st.text_input("Ticker Yahoo (facultatif)", key="wl_tk",
                       placeholder="ex : MC.PA — si l'ISIN n'est pas reconnu")
         st.text_input("Note (facultatif)", key="wl_note")
-        st.text_input("URL de publication (facultatif)", key="wl_url",
-                      placeholder="ex : https://investor.societe.com")
-        c_add, c_cherche = st.columns(2)
-        ajouter = c_add.button("Ajouter", key="wl_add", type="primary")
-        c_cherche.button("🔍 Chercher l'URL", key="wl_cherche", on_click=_chercher_url_wl,
-                         args=(tmap,), help="Recherche web de la publication financière")
-        if msg := st.session_state.pop("wl_msg", None):
-            st.info(msg)
+        ajouter = st.button("Ajouter", key="wl_add", type="primary")
 
         if ajouter:
             isin = st.session_state.get("wl_isin", "").strip().upper()
             tk = st.session_state.get("wl_tk", "").strip().upper()
             note = st.session_state.get("wl_note", "").strip()
-            url_saisie = C.nettoyer_url(st.session_state.get("wl_url", ""))
-            if st.session_state.get("wl_url", "").strip() and not url_saisie:
-                st.error("URL invalide : elle doit commencer par http:// ou https://.")
-            elif not C.isin_valide(isin):
+            if not C.isin_valide(isin):
                 st.error("ISIN invalide (12 caractères, clé de contrôle incorrecte).")
             elif isin in wl["isin"].tolist():
                 st.info("Déjà dans la watchlist.")
             else:
-                trouve = None
                 if isin not in tmap.index or tk:
                     trouve = None if tk else D.chercher_ticker(isin)
                     ticker = tk or (trouve or {}).get("ticker")
@@ -708,38 +625,10 @@ def onglet_watchlist() -> None:
                     if err:
                         st.error(err)
                         return
-                url_value = url_saisie
-                if url_value is None:  # recherche automatique (silencieuse en cas d'échec)
-                    nom = (nom_de(tmap, isin) if isin in tmap.index else (trouve or {}).get("nom"))
-                    ticker_url = tmap.loc[isin, "ticker"] if isin in tmap.index else tk or None
-                    url_value = D.chercher_url_publication(nom, ticker_url, isin) if nom else None
                 db.upsert("watchlist", [{"isin": isin, "note": note or None}], "isin")
-                msg = "Ajouté à la watchlist ✅"
-                if url_value:
-                    err_url = enregistrer_url(isin, url_value)
-                    if err_url:
-                        msg += " — " + err_url
                 st.session_state["wl_reset"] = True
-                flash(msg)
+                flash("Ajouté à la watchlist ✅")
                 st.rerun()
-
-
-def _chercher_url_wl(tmap_: pd.DataFrame) -> None:
-    """Callback du bouton « Chercher l'URL » : remplit le champ URL (modifiable ici, pas après coup)."""
-    isin = st.session_state.get("wl_isin", "").strip().upper()
-    if not C.isin_valide(isin):
-        st.session_state["wl_msg"] = "Saisissez d'abord un ISIN valide."
-        return
-    if isin in tmap_.index:
-        nom, ticker = nom_de(tmap_, isin), tmap_.loc[isin, "ticker"]
-    else:
-        trouve = D.chercher_ticker(isin) or {}
-        nom, ticker = trouve.get("nom"), trouve.get("ticker")
-    url = D.chercher_url_publication(nom, ticker, isin) if nom else None
-    if url:
-        st.session_state["wl_url"] = url
-    else:
-        st.session_state["wl_msg"] = "Aucune URL trouvée : saisissez-la manuellement."
 
 
 # --------------------------------------------------------------------------- #

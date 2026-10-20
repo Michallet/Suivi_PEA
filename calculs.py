@@ -12,6 +12,7 @@ Conventions
 from __future__ import annotations
 
 import re
+from urllib.parse import quote_plus
 
 import numpy as np
 import pandas as pd
@@ -42,14 +43,15 @@ def isin_valide(isin: str) -> bool:
     return total % 10 == 0
 
 
-def nettoyer_url(url) -> str | None:
-    """URL http(s) utilisable dans un lien Markdown, ou None (vide, NaN, schéma douteux comme javascript:)."""
-    if url is None or not isinstance(url, str):
-        return None
-    url = url.strip()
-    if not re.match(r"https?://[^\s/]+", url, flags=re.I):
-        return None
-    return url.replace(" ", "%20").replace("(", "%28").replace(")", "%29")
+_MOTS_VIDES = {"se", "sa", "nv", "n.v.", "ag", "plc", "spa", "sas", "acciones", "ucits", "etf", "acc",
+               "dist", "screened", "eur"}
+
+
+def lien_actualites(nom: str) -> str:
+    """Recherche Google Actualités « <nom> bourse » (formes juridiques et parenthèses retirées)."""
+    nom = re.sub(r"\([^)]*\)", " ", nom or "")
+    nom = " ".join(m for m in nom.split() if m.lower().strip(".,") not in _MOTS_VIDES)
+    return "https://www.google.com/search?tbm=nws&q=" + quote_plus(f"{nom} bourse".strip())
 
 
 def formater_gros_nombre(x) -> str:
