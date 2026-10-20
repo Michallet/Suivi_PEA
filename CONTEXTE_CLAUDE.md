@@ -126,12 +126,11 @@ Lancer : `pip install -r requirements-dev.txt && pytest -q`.
 
 ## 6️⃣ **Problèmes connus / À améliorer**
 
-### ⚠️ **Recherche Google (URL automatique)**
+### ⚠️ **Recherche d'URL de publication (automatique)**
 - **Risque** : DuckDuckGo (remplace Google depuis le 20/10) peut aussi bloquer les IP de Streamlit Cloud ; repli sur le site Yahoo, sinon saisie manuelle
-- **Solution recommandée** : Remplacer par **API Google Custom Search** (gratuite : 100 req/jour)
-  - Clé API à ajouter dans `st.secrets`
-  - Endpoint : `https://www.googleapis.com/customsearch/v1`
-- **Alternative** : Utiliser **DuckDuckGo** (pas de blocage) ou **Bing Search API**
+- **Ne PAS passer par l'API Google Custom Search** : fermée aux nouveaux clients et supprimée le 01/01/2027 (vérifié le 20/10/2026).
+- **Implémentation actuelle (v7.1)** : `recherche.py` (pur, testé) construit 2 requêtes (publications + rapport PDF ; ETF : fiche produit/DIC avec l'ISIN), interroge DuckDuckGo puis Bing (HTML, sans clé), et **classe** les résultats (PDF/mots « results, annual, investor… » favorisés, pages d'accueil, Wikipédia, LinkedIn… pénalisés, bonus si le domaine porte le nom de l'émetteur). Repli : `info["website"]` Yahoo = **page d'accueil** (l'app prévient alors).
+- **Jamais testé en direct** (pas de réseau en dev) : si les liens restent des pages d'accueil, les moteurs bloquent probablement les IP de Streamlit Cloud ⇒ saisie manuelle, ou service de recherche à clé (Brave Search API, SerpApi… à vérifier avant).
 
 ### ⚠️ **KPIs EV/EBITDA**
 - **Calcul** : `enterpriseValue / ebitda` uniquement (plus de repli sur `marketCap`)
@@ -200,7 +199,7 @@ GOOGLE_SEARCH_CX = "votre_CX"
 ## 🔟 **Prochaines étapes suggérées**
 
 ### 🎯 **Priorité 1 : Stabiliser la recherche URL**
-- [ ] Remplacer `requests + BeautifulSoup` par **API Google Custom Search**
+- [x] ~~Remplacer par Google Custom Search~~ (API fermée) → classement multi-moteurs fait (v7.1)
 - [ ] Gérer les erreurs de recherche (timeout, CAPTCHA)
 - [ ] Ajouter un cache pour les URLs trouvées (éviter les requêtes répétées)
 

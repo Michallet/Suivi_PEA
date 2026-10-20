@@ -21,6 +21,7 @@ import db
 import demo
 import donnees as D
 import llm
+import recherche as R
 from schema import SCHEMA
 
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
@@ -346,11 +347,12 @@ def _enregistrer_url_cb(isin: str, cle: str) -> None:
     flash("Lien enregistré ✅" if url else "Lien supprimé")
 
 
-def _chercher_url_cb(cle: str, nom: str, ticker) -> None:
-    url = D.chercher_url_publication(nom, ticker if isinstance(ticker, str) else None)
+def _chercher_url_cb(cle: str, nom: str, ticker, isin: str) -> None:
+    url = D.chercher_url_publication(nom, ticker if isinstance(ticker, str) else None, isin)
     if url:
         st.session_state[cle] = url
-        flash("URL trouvée : vérifiez-la puis enregistrez.")
+        flash("Seule la page d'accueil a été trouvée : précisez l'URL à la main si besoin."
+              if R.est_page_accueil(url) else "URL trouvée : vérifiez-la puis enregistrez.")
     else:
         flash("Aucune URL trouvée : saisissez-la manuellement.")
 
@@ -367,7 +369,7 @@ def editeur_url(isin: str, ctx: str) -> None:
     c1, c2 = st.columns(2)
     c1.button("💾 Enregistrer", key=cle + "_ok", on_click=_enregistrer_url_cb, args=(isin, cle))
     c2.button("🔍 Chercher", key=cle + "_q", on_click=_chercher_url_cb,
-              args=(cle, nom_de(tmap, isin), ticker), help="Recherche web de la publication financière")
+              args=(cle, nom_de(tmap, isin), ticker, isin), help="Recherche web de la publication financière")
 
 
 def carte_ligne(r, ctx: str) -> None:
@@ -710,7 +712,7 @@ def onglet_watchlist() -> None:
                 if url_value is None:  # recherche automatique (silencieuse en cas d'échec)
                     nom = (nom_de(tmap, isin) if isin in tmap.index else (trouve or {}).get("nom"))
                     ticker_url = tmap.loc[isin, "ticker"] if isin in tmap.index else tk or None
-                    url_value = D.chercher_url_publication(nom, ticker_url) if nom else None
+                    url_value = D.chercher_url_publication(nom, ticker_url, isin) if nom else None
                 db.upsert("watchlist", [{"isin": isin, "note": note or None}], "isin")
                 msg = "Ajouté à la watchlist ✅"
                 if url_value:
@@ -733,7 +735,7 @@ def _chercher_url_wl(tmap_: pd.DataFrame) -> None:
     else:
         trouve = D.chercher_ticker(isin) or {}
         nom, ticker = trouve.get("nom"), trouve.get("ticker")
-    url = D.chercher_url_publication(nom, ticker) if nom else None
+    url = D.chercher_url_publication(nom, ticker, isin) if nom else None
     if url:
         st.session_state["wl_url"] = url
     else:

@@ -5,13 +5,14 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from urllib.parse import parse_qs, quote_plus, urlparse
 from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
 import streamlit as st
 import yfinance as yf
+
+import recherche as R
 
 # Places européennes cotées en € (le PEA impose des titres européens)
 SUFFIXES_EUR = (".PA", ".AS", ".BR", ".MI", ".DE", ".MC", ".LS", ".HE", ".IR", ".VI")
@@ -42,35 +43,27 @@ def chercher_ticker(isin: str) -> dict | None:
             "nom": choix.get("shortname") or choix.get("longname") or choix["symbol"]}
 
 
-def _url_depuis_ddg(html: str) -> str | None:
-    """Premier résultat organique d'une page DuckDuckGo « html » (les publicités sont ignorées)."""
-    from bs4 import BeautifulSoup
-
-    for a in BeautifulSoup(html, "html.parser").select("a.result__a"):
-        href = a.get("href", "")
-        if href.startswith("//"):
-            href = "https:" + href
-        cible = parse_qs(urlparse(href).query).get("uddg", [href])[0]
-        hote = urlparse(cible).netloc.lower()
-        if cible.startswith(("http://", "https://")) and "duckduckgo.com" not in hote:
-            return cible
-    return None
-
-
-def _recherche_url(nom: str, ticker: str | None) -> str | None:
-    """1) recherche web « {nom} Financial report » ; 2) repli : site de l'émetteur indiqué par Yahoo."""
+def _recherche_url(nom: str, ticker: str | None, isin: str | None) -> str | None:
+    """1) recherche web (DuckDuckGo, puis Bing si bloqué) classée par recherche.meilleur_lien ;
+    2) repli : site de l'émetteur indiqué par Yahoo (le plus souvent une page d'accueil)."""
     import requests
 
-    try:
-        r = requests.get("https://html.duckduckgo.com/html/?q=" + quote_plus(f"{nom} Financial report"),
-                         headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"},
-                         timeout=8)
-        if r.status_code == 200:
-            url = _url_depuis_ddg(r.text)
-            if url:
-                return url
-    except Exception:
-        pass  # bloqué / hors ligne : on tente le repli
+    en_tetes = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/124 Safari/537.36",
+                "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.7"}
+    resultats = []
+    for q in R.requetes(nom, isin):
+        for _moteur, fabrique_url, extraire in R.MOTEURS:
+            try:
+                r = requests.get(fabrique_url(q), headers=en_tetes, timeout=6)
+                trouves = extraire(r.text) if r.status_code == 200 else []
+            except Exception:
+                trouves = []
+            if trouves:  # un moteur a répondu : inutile d'essayer le suivant pour cette requête
+                resultats += trouves
+                break
+    url = R.meilleur_lien(resultats, nom)
+    if url:
+        return url
     if ticker:
         try:
             site = (yf.Ticker(ticker).info or {}).get("website")
@@ -82,14 +75,14 @@ def _recherche_url(nom: str, ticker: str | None) -> str | None:
 
 
 @st.cache_data(ttl=24 * 3600, show_spinner=False)
-def _url_en_cache(nom: str, ticker: str | None) -> str:
-    url = _recherche_url(nom, ticker)
+def _url_en_cache(nom: str, ticker: str | None, isin: str | None) -> str:
+    url = _recherche_url(nom, ticker, isin)
     if not url:
         raise LookupError(nom)  # une exception n'est jamais mise en cache : on réessaiera plus tard
     return url
 
 
-def chercher_url_publication(nom: str, ticker: str | None = None) -> str | None:
+def chercher_url_publication(nom: str, ticker: str | None = None, isin: str | None = None) -> str | None:
     """URL de la publication financière d'un titre (recherche web, sans clé API), ou None.
 
     Résultat mis en cache 24 h ; ne lève jamais d'exception.
@@ -97,7 +90,7 @@ def chercher_url_publication(nom: str, ticker: str | None = None) -> str | None:
     if not nom or not str(nom).strip():
         return None
     try:
-        return _url_en_cache(str(nom).strip(), ticker)
+        return _url_en_cache(str(nom).strip(), ticker, isin)
     except Exception:
         return None
 
