@@ -18,6 +18,7 @@ import auth
 import calculs as C
 import db
 import donnees as D
+import import_ecran as IE
 import llm
 from schema import SCHEMA
 
@@ -806,14 +807,191 @@ def onglet_projet() -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Import par captures d'écran du courtier (Gemini vision) — compte démo exclu
+# --------------------------------------------------------------------------- #
+SOURCES_ISIN = {"capture": "lu à l'écran", "nom": "reconnu dans votre base",
+                "position": "même quantité et PRM qu'une ligne détenue",
+                "ia": "⚠️ proposé par l'IA, à vérifier", None: "❓ introuvable"}
+
+
+def _oublier_import() -> None:
+    for k in [k for k in st.session_state if k == "imp" or k.startswith("imp_f")]:
+        del st.session_state[k]
+
+
+def _lire_captures(files, cle_api: str, modele: str) -> None:
+    """Gemini lit les images, puis la différence avec la base est calculée (rien n'est écrit)."""
+    try:
+        with st.spinner("Lecture des captures par Gemini…"):
+            brut = llm.extraire_capture([(f.getvalue(), f.type) for f in files], cle_api, modele)
+    except llm.ErreurIA as e:
+        st.error(str(e))
+        return
+    st.session_state["imp_appels"] = st.session_state.get("imp_appels", []) + [maintenant().date()]
+    lignes, avert = IE.normaliser_releve(brut)
+    if not lignes:
+        st.error("Aucune ligne de portefeuille lisible sur ces captures.")
+        for a in avert:
+            st.caption(a)
+        return
+    noms = {i: n for i, n in tmap["nom"].items() if isinstance(n, str)} if not tmap.empty else {}
+    cours = {i: float(p) for i, p in tmap["dernier_prix"].dropna().items()} if not tmap.empty else {}
+    cours.update({r.isin: float(r.prix) for r in cours_all.itertuples() if pd.notna(r.prix)})
+    releve = IE.resoudre_isins(lignes, noms, positions)
+    ops = IE.proposer_operations(releve, positions, cours, maintenant().date())
+    ver = st.session_state.get("imp", {}).get("ver", 0) + 1
+    st.session_state["imp"] = {"releve": releve, "ops": ops, "avert": avert, "ver": ver,
+                               "n_trans": len(trans)}
+    st.session_state["imp_upn"] = st.session_state.get("imp_upn", 0) + 1  # vide le chargeur d'images
+    st.rerun()
+
+
+def _carte_operation(i: int, ver: int, r) -> dict:
+    """Une opération proposée = une carte modifiable (mobile-first). Retourne les valeurs saisies."""
+    k = f"imp_f{ver}_{i}"
+    with st.container(border=True):
+        valider = st.checkbox(f"**{r.type}** · {r.nom}", value=bool(r.valider), key=k + "v")
+        c1, c2, c3 = st.columns(3)
+        q = c1.number_input("Quantité", min_value=0.0, value=float(r.quantite), step=1.0,
+                            format="%.4f", key=k + "q")
+        p = c2.number_input("Prix (€)", min_value=0.0, value=float(r.prix), step=0.1,
+                            format="%.4f", key=k + "p")
+        fr = c3.number_input("Frais (€)", min_value=0.0, value=float(r.frais), step=0.1,
+                             format="%.2f", key=k + "f")
+        d = st.date_input("Date", r.date, format="DD/MM/YYYY", key=k + "d")
+        isin = st.text_input("ISIN", value=r.isin, key=k + "i")
+        if r.note:
+            st.caption(r.note)
+    return {"valider": valider, "date": d, "isin": isin.strip().upper(), "nom": r.nom, "type": r.type,
+            "quantite": q, "prix": p, "frais": fr, "note": r.note}
+
+
+def import_captures() -> None:
+    """Captures du courtier -> relevé (Gemini) -> écarts avec la base -> opérations à valider."""
+    st.caption("Chargez une ou plusieurs captures de votre portefeuille chez le courtier : "
+               "l'app propose les achats / ventes qui alignent votre suivi sur la réalité. "
+               "Rien n'est enregistré avant votre validation.")
+    cle_api = auth.secret("GEMINI_API_KEY")
+    modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+    if mode_demo:
+        st.file_uploader("Captures", disabled=True, key="imp_demo_up")
+        st.button("🔍 Lire les captures", disabled=True, key="imp_demo_btn")
+        st.caption("Indisponible en mode démo (utilise l'API Gemini).")
+        return
+
+    n_auj = sum(1 for d in st.session_state.get("imp_appels", []) if d == maintenant().date())
+    limite = n_auj >= llm.MAX_IMPORTS_PAR_JOUR
+    files = st.file_uploader(f"Captures (PNG/JPEG, {llm.MAX_CAPTURES} max)", type=["png", "jpg", "jpeg", "webp"],
+                             accept_multiple_files=True, key=f"imp_up{st.session_state.get('imp_upn', 0)}")
+    if not cle_api:
+        st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'import.")
+    elif limite:
+        st.caption(f"Limite de {llm.MAX_IMPORTS_PAR_JOUR} lectures par jour atteinte.")
+    else:
+        st.caption("🔐 Les images sont envoyées telles quelles à Gemini : quantités et montants y sont "
+                   "lisibles (contrairement à l'analyse IA). Cadrez sans nom ni numéro de compte. "
+                   "Sur le palier gratuit, Google peut réutiliser les contenus envoyés. "
+                   "Les images ne sont pas conservées.")
+    if st.button("🔍 Lire les captures", key="imp_lire", disabled=(not cle_api) or limite or not files):
+        if len(files) > llm.MAX_CAPTURES:
+            st.error(f"Maximum {llm.MAX_CAPTURES} captures par import.")
+        else:
+            _lire_captures(files, cle_api, modele)
+
+    imp = st.session_state.get("imp")
+    if not imp:
+        return
+    if imp["n_trans"] != len(trans):
+        _oublier_import()
+        st.warning("Le journal a changé depuis la lecture : relancez la lecture des captures.")
+        return
+
+    releve, ops, ver = imp["releve"], imp["ops"], imp["ver"]
+    for a in imp["avert"]:
+        st.caption("• " + a)
+    with st.expander(f"📋 {len(releve)} ligne(s) lue(s) chez le courtier"):
+        for l in releve:
+            st.markdown(f"- **{l['nom']}** : {l['quantite']:g} @ {fmt(l['prm'], 4)} € · "
+                        f"{l['isin'] or '?'} ({SOURCES_ISIN[l['source_isin']]})")
+
+    if ops.empty:
+        st.success("✅ Les quantités de votre suivi correspondent déjà aux captures.")
+    else:
+        st.markdown(f"#### {len(ops)} opération(s) proposée(s)")
+        st.caption("Cochez, corrigez ou complétez (prix, date, frais, ISIN), puis enregistrez. "
+                   "Le prix d'un achat est déduit du PRM du courtier ; celui d'une vente est le cours "
+                   "actuel par défaut.")
+    with st.form(f"f_imp_{ver}"):
+        saisies = [_carte_operation(i, ver, r) for i, r in enumerate(ops.itertuples())]
+        c1, c2 = st.columns(2)
+        controler = c1.form_submit_button("🔎 Contrôler")
+        enregistrer = c2.form_submit_button("✅ Enregistrer", type="primary")
+    if st.button("✖ Annuler l'import", key="imp_annuler"):
+        _oublier_import()
+        st.rerun()
+    if not (controler or enregistrer):
+        return
+
+    edites = pd.DataFrame(saisies, columns=IE.COLS_OPERATIONS)
+    nouvelles, erreurs = IE.preparer_insertions(edites)
+    if erreurs:
+        for e in erreurs:
+            st.error(e)
+        return
+    try:
+        apres, _ = C.calcul_positions(pd.concat([trans, nouvelles], ignore_index=True))
+    except ValueError as e:
+        st.error(str(e))
+        return
+
+    if controler:
+        ecarts = IE.ecarts_apres(releve, apres)
+        if ecarts.empty:
+            st.success("✅ Après ces opérations, quantités et PRM correspondent aux captures.")
+        else:
+            st.warning("Écarts restants avec les captures après ces opérations :")
+            for r in ecarts.itertuples():
+                prm = ("" if pd.isna(r.prm_courtier) or pd.isna(r.prm_base) else
+                       f" · PRM {fmt(r.prm_base, 4)} (suivi) / {fmt(r.prm_courtier, 4)} (courtier)")
+                st.markdown(f"- **{r.nom}** : quantité {r.qte_base:g} (suivi) / {r.qte_courtier:g} (courtier){prm}")
+        return
+
+    if nouvelles.empty:
+        st.info("Aucune opération cochée.")
+        return
+    for isin in nouvelles["isin"].unique():  # tickers résolus AVANT toute écriture
+        if isin not in tmap.index:
+            trouve = D.chercher_ticker(isin)
+            if not trouve:
+                st.error(f"Ticker introuvable pour {isin} : ajoutez-le via Saisie › Transaction, "
+                         "puis relancez l'import.")
+                return
+            err = enregistrer_ticker(isin, trouve["ticker"], trouve.get("nom"))
+            if err:
+                st.error(err)
+                return
+    for r in nouvelles.itertuples(index=False):
+        db.inserer("transactions", r._asdict())
+    _oublier_import()
+    flash(f"{len(nouvelles)} transaction(s) enregistrée(s) ✅")
+    st.rerun()
+
+
+# --------------------------------------------------------------------------- #
 # Onglet Saisie (tous les comptes connectés)
 # --------------------------------------------------------------------------- #
 def onglet_saisie() -> None:
     if not connecte:
         st.info("🔒 La saisie est disponible après connexion.")
         return
-    action = st.selectbox("Action", ["Transaction", "Dividende", "Versement / retrait", "Secteurs",
-                                     "Corriger / supprimer", "Maintenance & sauvegarde"])
+    action = st.selectbox("Action", ["Transaction", "Import par captures", "Dividende",
+                                     "Versement / retrait", "Secteurs", "Corriger / supprimer",
+                                     "Maintenance & sauvegarde"])
+
+    # -- Import par captures du courtier ------------------------------------ #
+    if action == "Import par captures":
+        import_captures()
+        return
 
     # -- Transaction ------------------------------------------------------- #
     if action == "Transaction":

@@ -1,11 +1,14 @@
 """Analyse IA du portefeuille : un seul appel Gemini, réponse JSON toujours au même format.
 
-Confidentialité : seuls des POIDS en % sont envoyés (jamais de montants en euros).
+Confidentialité : l'analyse et le chat n'envoient que des POIDS en % (jamais de montants en euros).
+EXCEPTION : l'import par captures d'écran (`extraire_capture`) envoie les IMAGES telles que
+l'utilisateur les charge, donc quantités et montants visibles à l'écran.
 Sur le palier gratuit de l'API Gemini, Google peut réutiliser les contenus envoyés pour améliorer
 ses produits (voir ai.google.dev/gemini-api/terms) : ne mettez pas de données plus sensibles ici.
 """
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -393,6 +396,125 @@ def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90,
         except ErreurIA as e:
             derniere = e
             if "refusée" in str(e) or "introuvable" in str(e) or "Quota" in str(e) or "Clé" in str(e):
+                break  # inutile de réessayer
+    raise derniere
+
+
+# --------------------------------------------------------------------------- #
+# Import par captures d'écran du courtier (vision)
+# --------------------------------------------------------------------------- #
+MAX_CAPTURES = 8                       # images par import
+MAX_OCTETS_CAPTURES = 15 * 1024 * 1024  # total (limite de requête Gemini : 20 Mo)
+MAX_IMPORTS_PAR_JOUR = 10              # filet de sécurité (compté dans la session, voir app.py)
+TYPES_IMAGE = ("image/png", "image/jpeg", "image/webp")
+
+SYSTEME_CAPTURE_DEFAUT = (
+    "Tu lis des captures d'écran de l'application d'un courtier et tu en extrais la liste des "
+    "lignes d'un portefeuille PEA (actions et ETF). Tu ne fais aucune analyse.\n"
+    "Règles impératives :\n"
+    "- Une entrée par ligne du portefeuille, avec exactement ce qui est affiché. N'invente aucune "
+    "ligne, ne complète pas une ligne coupée ou illisible : omets-la.\n"
+    "- nom : le nom tel qu'affiché (garde les « … » ou « ... » d'un nom tronqué). N'inclus pas "
+    "l'étiquette de type (« Action », « ETF »).\n"
+    "- quantite : le nombre de titres détenus. prm : le prix de revient moyen par titre (PRM, PRU, "
+    "prix d'achat moyen), en euros. Sur ce courtier, une ligne « 3 @ 21.190 » veut dire quantité 3 "
+    "et PRM 21,19.\n"
+    "- valeur : la valorisation totale de la ligne en euros si elle est affichée (le montant "
+    "principal à droite du nom), sinon 0. Ignore les variations (+/-, %).\n"
+    "- isin_capture : l'ISIN SEULEMENT s'il est écrit à l'écran, sinon chaîne vide. "
+    "isin_ia : l'ISIN de l'instrument d'après ta connaissance, uniquement si tu en es certain, "
+    "sinon chaîne vide. Ne devine jamais.\n"
+    "- Nombres au format décimal avec un point (1859.86), sans espace ni symbole.\n"
+    "- Ignore le solde total, les noms, numéros de compte et toute information personnelle.\n"
+    "- Plusieurs captures peuvent se chevaucher : une ligne visible deux fois ne figure qu'une fois.\n"
+    "- Réponds uniquement par un objet JSON conforme au schéma demandé."
+)
+SYSTEME_CAPTURE = PROMPTS_MD.get("capture", SYSTEME_CAPTURE_DEFAUT)
+
+SCHEMA_JSON_CAPTURE = {
+    "type": "object",
+    "properties": {
+        "lignes": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "nom": {"type": "string"},
+                    "isin_capture": {"type": "string"},
+                    "isin_ia": {"type": "string"},
+                    "quantite": {"type": "number"},
+                    "prm": {"type": "number"},
+                    "valeur": {"type": "number"},
+                },
+                "required": ["nom", "isin_capture", "isin_ia", "quantite", "prm", "valeur"],
+            },
+        },
+    },
+    "required": ["lignes"],
+}
+
+
+def _texte_reponse(r, modele: str) -> str:
+    """Statut HTTP -> ErreurIA lisible ; sinon texte de la réponse (hors « pensées »)."""
+    if r.status_code in (401, 403):
+        raise ErreurIA("Clé API Gemini refusée (vérifiez GEMINI_API_KEY).")
+    if r.status_code == 404:
+        raise ErreurIA(f"Modèle « {modele} » introuvable (vérifiez GEMINI_MODEL).")
+    if r.status_code == 429:
+        raise ErreurIA("Quota Gemini atteint. Réessayez plus tard.")
+    if r.status_code >= 500:
+        raise ErreurIA("Service Gemini momentanément indisponible. Réessayez.")
+    if r.status_code != 200:
+        raise ErreurIA(f"Requête refusée par Gemini ({r.status_code}) : {_message_erreur(r)}")
+    try:
+        parts = r.json()["candidates"][0]["content"]["parts"]
+    except (KeyError, IndexError, TypeError, ValueError):
+        raise ErreurIA("Gemini n'a renvoyé aucune réponse exploitable (contenu bloqué ou vide).")
+    return "".join(p.get("text", "") for p in parts if not p.get("thought"))
+
+
+def _payload_capture(images: list, variante: str) -> dict:
+    parts = [{"text": f"{len(images)} capture(s) d'écran du portefeuille. Extrais les lignes."}]
+    parts += [{"inlineData": {"mimeType": mime, "data": base64.b64encode(data).decode("ascii")}}
+              for data, mime in images]
+    config = {"responseMimeType": "application/json",
+              "thinkingConfig": {"thinkingLevel": "low"},
+              "maxOutputTokens": 8192}
+    if variante == "json_schema":
+        config["responseJsonSchema"] = SCHEMA_JSON_CAPTURE
+    else:
+        config["responseSchema"] = _en_majuscules(SCHEMA_JSON_CAPTURE)
+    return {"systemInstruction": {"parts": [{"text": SYSTEME_CAPTURE}]},
+            "contents": [{"role": "user", "parts": parts}],
+            "generationConfig": config}
+
+
+def extraire_capture(images: list, cle: str, modele: str | None = None, timeout: int = 120) -> dict:
+    """Envoie les captures à Gemini et retourne le JSON brut {"lignes": [...]} (à nettoyer avec
+    `import_ecran.normaliser_releve`). `images` : liste de (octets, type MIME). Lève ErreurIA.
+    """
+    modele = modele or MODELE_DEFAUT
+    if not images:
+        raise ErreurIA("Aucune capture à analyser.")
+    if len(images) > MAX_CAPTURES:
+        raise ErreurIA(f"Maximum {MAX_CAPTURES} captures par import.")
+    if any(mime not in TYPES_IMAGE for _, mime in images):
+        raise ErreurIA("Format d'image non pris en charge (PNG, JPEG ou WebP).")
+    if sum(len(d) for d, _ in images) > MAX_OCTETS_CAPTURES:
+        raise ErreurIA("Images trop volumineuses (15 Mo maximum au total).")
+    derniere = None
+    for _ in range(2):
+        try:
+            r = _post(_payload_capture(images, "json_schema"), cle, modele, timeout)
+            if r.status_code == 400 and "schema" in _message_erreur(r).lower():
+                r = _post(_payload_capture(images, "response_schema"), cle, modele, timeout)
+            obj = _parser_json(_texte_reponse(r, modele))
+            if not isinstance(obj, dict) or not isinstance(obj.get("lignes"), list):
+                raise ErreurIA("Réponse de l'IA inattendue (structure).")
+            return obj
+        except ErreurIA as e:
+            derniere = e
+            if any(m in str(e) for m in ("refusée", "introuvable", "Quota", "Clé", "Maximum")):
                 break  # inutile de réessayer
     raise derniere
 

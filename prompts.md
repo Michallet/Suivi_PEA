@@ -10,6 +10,9 @@ Manage app → Reboot) pour prendre les changements en compte.
 - Une **section absente** (ou fichier renommé/supprimé) = le prompt par défaut codé dans
   `llm.py` reprend la main. Tu peux donc commenter une section entière avec `<!-- -->`…
   non : supprime-la, c'est un fichier Markdown lu tel quel.
+- Section facultative `## capture` : lecture des captures d'écran du courtier (Saisie › Import par
+  captures). Absente = prompt par défaut de `llm.py` (`SYSTEME_CAPTURE_DEFAUT`) ; à copier ici
+  pour l'adapter à un autre courtier. Elle doit rester une extraction pure (JSON, jamais d'analyse).
 - Chaque section est envoyée **telle quelle** comme instruction système à Gemini.
 - Contraintes techniques à respecter dans tes textes : l'analyse et le scénario doivent
   demander une réponse **JSON** (le code la valide), avec les 4 critères listés et les

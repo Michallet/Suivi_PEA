@@ -312,3 +312,37 @@ streamlit run app.py
 - Exécuter ensuite `seed_demo.sql` une seule fois pour créer le portefeuille fictif persistant. Le compte demo est partagé : toutes les modifications sont visibles par les visiteurs qui se connectent avec `demo/demo`. Ne jamais y enregistrer de données personnelles.
 - L'analyse de portefeuille, l'analyse de scénario et le chatbot IA sont désactivés pour `demo`; les transactions, dividendes, versements, watchlist, secteurs et scénarios restent modifiables.
 - Les anciens secrets `APP_PASSWORD` sont encore lus comme mot de passe de `theo` si aucun compte `[users.theo]` n'est configuré, pour faciliter la transition. Migrer de préférence vers le bloc `[users.theo]`.
+
+
+## 📷 v9 — Import du portefeuille par captures d'écran (20/10/2026)
+
+**But** : Saisie › **Import par captures**. L'utilisateur charge 1 à 8 captures de son courtier → Gemini (vision) lit
+`nom / quantité / PRM / valeur` → l'app calcule l'écart avec Supabase → **achats/ventes proposés**, modifiables, à valider.
+Rien n'est écrit avant « ✅ Enregistrer ». Compte **demo** : boutons désactivés (aucun appel Gemini).
+
+**Fichiers** : `import_ecran.py` (logique **pure**, testée) · `llm.extraire_capture` (appel HTTP vision, schéma
+`SCHEMA_JSON_CAPTURE`, prompt `SYSTEME_CAPTURE`, surchargeable par `## capture` dans `prompts.md`) ·
+`app.py` (`import_captures`, cartes mobile-first dans un `st.form`) · `tests/test_import_ecran.py` (16 tests).
+
+**Règles métier retenues**
+- Les captures du courtier n'affichent que le **nom** (pas l'ISIN). Ordre de résolution : ISIN lu à l'écran > nom proche d'un
+  nom de `tickers` (mots du courtier ⊂ mots du nom connu, nom tronqué « Scre… » géré, ambigu = refusé) > même quantité **et**
+  PRM (±0,5 %) qu'une position > ISIN proposé par l'IA (⚠️ « à vérifier »). Tout ISIN passe le contrôle Luhn
+  (`C.isin_valide`) ; le ticker est résolu via `D.chercher_ticker` **avant** toute écriture.
+- **Achat** (qté courtier > base) : prix **déduit** = `(PRM_courtier × Q_courtier − coût_base) / Δ`, pour que le PRM de l'app
+  redevienne celui du courtier (frais inclus, frais = 0). Si ≤ 0 : prix = cours, avec alerte.
+- **Vente** (qté courtier < base) : prix = cours actuel par défaut (à compléter). **Ligne détenue absente des captures** :
+  vente totale **décochée** (une capture manque peut-être). **Ligne sans ISIN** : décochée.
+- Alerte « lecture à vérifier » si `valeur ÷ quantité` s'écarte de >15 % du cours (>60 % du PRM sans cours) : chiffre mal lu.
+- « 🔎 Contrôler » rejoue le journal + opérations cochées et liste les écarts restants (quantité, PRM >1 %).
+  Garde-fous : vente > quantité détenue refusée (`calcul_positions`), journal modifié entre-temps = import annulé.
+- Quota : `llm.MAX_IMPORTS_PAR_JOUR` (10) **par session** (pas de table dédiée).
+
+**⚠️ Confidentialité (déroge au §2 « poids en % uniquement »)** : les **images** partent chez Gemini avec quantités et
+montants visibles ; l'UI le dit, et demande de cadrer sans nom/n° de compte. Palier gratuit : Google peut réutiliser les contenus.
+Les images ne sont ni stockées ni commitées. **Tests avec données fictives uniquement** (dépôt public).
+
+**Non vérifié en conditions réelles** : appel Gemini réel (pas de clé/réseau en dev), lecture d'une vraie capture, rendu mobile.
+Test UI fait avec `streamlit.testing` (AppTest) sur la fonction isolée, Supabase/Yahoo/Gemini simulés.
+**Pistes** : mémoriser « nom courtier → ISIN » (nouvelle table) pour ne corriger un ISIN qu'une fois ; lire aussi le cash/total
+du courtier pour proposer un versement ; dividendes.
