@@ -5,6 +5,7 @@ fictif persistant et n'a pas accès aux fonctionnalités IA.
 """
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from urllib.parse import quote_plus
@@ -23,6 +24,11 @@ import llm
 from schema import SCHEMA
 
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
+CHRONO = {"debut": time.perf_counter()}  # affiché en bas de page si le secret DEBUG_PERF est activé
+
+
+def jalon(nom: str) -> None:
+    CHRONO[nom] = time.perf_counter()
 
 SEUIL_CONCENTRATION = 25.0  # % des titres au-delà duquel on alerte
 BENCHMARKS = {"MSCI World (CW8)": "CW8.PA", "CAC 40": "^FCHI", "Euro Stoxx 50": "^STOXX50E"}
@@ -147,6 +153,7 @@ if t3.button("🔒", help="Se déconnecter"):
 # --------------------------------------------------------------------------- #
 # Chargement des données
 # --------------------------------------------------------------------------- #
+db.precharger(list(SCHEMA))  # toutes les tables en parallèle (puis lectures servies par le cache)
 try:
     trans, div, vers = store.lire("transactions"), store.lire("dividendes"), store.lire("versements")
     tick, sect, snaps = store.lire("tickers"), store.lire("secteurs"), store.lire("snapshots")
@@ -172,6 +179,7 @@ wl, scen = lire_sur("watchlist"), lire_sur("scenarios")
 scen_tr, analyses = lire_sur("scenario_trades"), lire_sur("analyses_ia")
 analyses_scen = lire_sur("analyses_scen")
 chat_log = lire_sur("chat_log")
+jalon("base")
 if tables_manquantes:
     st.warning("Tables manquantes : " + ", ".join(tables_manquantes)
                + ". Exécutez la version à jour de schema.sql dans Supabase.")
@@ -220,7 +228,9 @@ def charger_cours(isins: list[str]):
 
 isins_tous = list(dict.fromkeys(positions["isin"].tolist() + wl["isin"].tolist() + scen_tr["isin"].tolist()))
 cours_all, maj_prix, horodatage, tickers_tous = charger_cours(isins_tous)
+jalon("cours")
 fonds = fonds_fn(tickers_tous) if tickers_tous else {}
+jalon("fondamentaux")
 
 
 def secteur_de(isin: str, ticker) -> str:
@@ -242,6 +252,7 @@ def prix_courant(isin: str):
 
 pos = enrichir_complet(positions)
 s = C.synthese(pos, flux, vers)
+jalon("calculs")
 
 # Mémorise les derniers cours et le point de courbe du jour pour le compte courant.
 if connecte:
@@ -581,6 +592,7 @@ def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
 # --------------------------------------------------------------------------- #
 # Onglet Watchlist
 # --------------------------------------------------------------------------- #
+@st.fragment
 def onglet_watchlist() -> None:
     if wl.empty:
         st.info("Votre watchlist est vide. Ajoutez des valeurs : elles seront proposées dans les "
@@ -665,6 +677,7 @@ def graphique_compare(df: pd.DataFrame, cle: str) -> None:
     st.plotly_chart(fig, config=PLOTLY)
 
 
+@st.fragment
 def onglet_projet() -> None:
     st.caption("Simulez une répartition future à partir de votre PEA actuel, **sans le modifier**. "
                "Les opérations sont fictives, au dernier cours connu.")
@@ -821,9 +834,19 @@ def _oublier_import() -> None:
 
 def _lire_captures(files, cle_api: str, modele: str) -> None:
     """Gemini lit les images, puis la différence avec la base est calculée (rien n'est écrit)."""
+    if mode_demo:  # défense en profondeur : l'UI désactive déjà le bouton
+        return
+    images = []
+    for f in files:
+        octets = f.getvalue()
+        mime = IE.type_image_reel(octets)  # on ne se fie pas au type annoncé par le navigateur
+        if mime is None:
+            st.error(f"« {f.name} » n'est pas une image PNG, JPEG ou WebP valide.")
+            return
+        images.append((octets, mime))
     try:
         with st.spinner("Lecture des captures par Gemini…"):
-            brut = llm.extraire_capture([(f.getvalue(), f.type) for f in files], cle_api, modele)
+            brut = llm.extraire_capture(images, cle_api, modele)
     except llm.ErreurIA as e:
         st.error(str(e))
         return
@@ -879,14 +902,15 @@ def import_captures() -> None:
         st.caption("Indisponible en mode démo (utilise l'API Gemini).")
         return
 
+    max_jour = getattr(llm, "MAX_IMPORTS_PAR_JOUR", getattr(llm, "MAX_CAPTURES_PAR_JOUR", 10))
     n_auj = sum(1 for d in st.session_state.get("imp_appels", []) if d == maintenant().date())
-    limite = n_auj >= llm.MAX_IMPORTS_PAR_JOUR
+    limite = n_auj >= max_jour
     files = st.file_uploader(f"Captures (PNG/JPEG, {llm.MAX_CAPTURES} max)", type=["png", "jpg", "jpeg", "webp"],
                              accept_multiple_files=True, key=f"imp_up{st.session_state.get('imp_upn', 0)}")
     if not cle_api:
         st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'import.")
     elif limite:
-        st.caption(f"Limite de {llm.MAX_IMPORTS_PAR_JOUR} lectures par jour atteinte.")
+        st.caption(f"Limite de {max_jour} lectures par jour atteinte.")
     else:
         st.caption("🔐 Les images sont envoyées telles quelles à Gemini : quantités et montants y sont "
                    "lisibles (contrairement à l'analyse IA). Cadrez sans nom ni numéro de compte. "
@@ -980,6 +1004,7 @@ def import_captures() -> None:
 # --------------------------------------------------------------------------- #
 # Onglet Saisie (tous les comptes connectés)
 # --------------------------------------------------------------------------- #
+@st.fragment
 def onglet_saisie() -> None:
     if not connecte:
         st.info("🔒 La saisie est disponible après connexion.")
@@ -1292,7 +1317,8 @@ with tab_pf:
                 st.markdown(f"- Plus-values réalisées : **{fmt(ventes['pv'].sum(), 2, True)} €**\n"
                             f"- Dividendes nets perçus : **{fmt(div['montant'].sum())} €**")
 
-with tab_hist:
+@st.fragment
+def onglet_historique() -> None:
     if len(snaps) < 2:
         st.info("Pas encore d'historique : un point est enregistré à chaque visite en semaine. "
                 "Vous pouvez aussi le reconstituer depuis vos transactions "
@@ -1343,6 +1369,9 @@ with tab_hist:
                 resume += f" · {choix} : **{fmt(bench.iloc[-1] - 100, 2, True)} %**"
             st.markdown(resume)
 
+with tab_hist:
+    onglet_historique()
+
 with tab_proj:
     onglet_projet()
 
@@ -1351,3 +1380,11 @@ with tab_wl:
 
 with tab_saisie:
     onglet_saisie()
+
+if auth.secret("DEBUG_PERF"):  # secret facultatif : DEBUG_PERF = true
+    t = [(k, v) for k, v in CHRONO.items() if k != "debut"]
+    prec, morceaux = CHRONO["debut"], []
+    for k, v in t:
+        morceaux.append(f"{k} {1000 * (v - prec):.0f} ms")
+        prec = v
+    st.caption("⏱ " + " · ".join(morceaux) + f" · total script {1000 * (time.perf_counter() - CHRONO['debut']):.0f} ms")

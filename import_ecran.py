@@ -38,6 +38,23 @@ MOTS_VIDES = {"action", "etf", "ucits", "acc", "dist", "eur", "the", "de", "du",
 
 
 # --------------------------------------------------------------------------- #
+# Contrôle des images envoyées
+# --------------------------------------------------------------------------- #
+def type_image_reel(octets: bytes) -> str | None:
+    """Type MIME déduit des premiers octets (PNG, JPEG, WebP), sinon None.
+
+    Le type annoncé par le navigateur est modifiable : on ne transmet à Gemini que de vraies images.
+    """
+    if octets[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if octets[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if octets[:4] == b"RIFF" and octets[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+# --------------------------------------------------------------------------- #
 # Lecture du JSON renvoyé par Gemini
 # --------------------------------------------------------------------------- #
 def _nombre(x) -> float | None:

@@ -6,6 +6,8 @@ filtrée par user_id ; cette règle s'applique aussi aux méthodes appelées dir
 from __future__ import annotations
 
 import datetime as dt
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -41,9 +43,32 @@ def _clean(v):
     return v
 
 
-@st.cache_data(ttl=120, show_spinner=False)
-def _lire_cache(table: str, user_id: str) -> pd.DataFrame:
-    """Lecture paginée. user_id est un argument du cache pour éviter toute fuite inter-comptes."""
+@st.cache_resource
+def _versions() -> dict:
+    """Compteur de version par (compte, table), partagé entre sessions.
+
+    Une écriture ne change que la version de SA table : les autres tables restent en cache
+    (avant, chaque écriture vidait le cache de toutes les tables, d'où des relectures complètes).
+    """
+    return {}
+
+
+def _version(user_id: str, table: str) -> int:
+    return _versions().get((user_id, table), 0)
+
+
+def _invalider(table: str) -> None:
+    """Rend obsolète le cache de `table` pour le compte courant (les autres tables restent valides)."""
+    v, uid = _versions(), _utilisateur_actif()
+    v[(uid, table)] = v.get((uid, table), 0) + 1
+
+
+@st.cache_data(ttl=120, show_spinner=False, max_entries=256)
+def _lire_cache(table: str, user_id: str, version: int = 0) -> pd.DataFrame:
+    """Lecture paginée. user_id est un argument du cache pour éviter toute fuite inter-comptes.
+
+    `version` n'est pas lu : il ne sert qu'à contourner le cache après une écriture sur la table.
+    """
     if table not in SCHEMA:
         raise KeyError(f"Table inconnue : {table}")
     rows, debut = [], 0
@@ -74,11 +99,41 @@ def lire(table: str) -> pd.DataFrame:
     """Lit uniquement les lignes de l'utilisateur courant (cache isolé par user_id)."""
     if table not in SCHEMA:
         raise KeyError(f"Table inconnue : {table}")
-    return _lire_cache(table, _utilisateur_actif())
+    uid = _utilisateur_actif()
+    return _lire_cache(table, uid, _version(uid, table))
 
 
-# Compatibilité avec le précédent appel lire.clear() utilisé dans ce module.
+# Compatibilité : lire.clear() vide tout le cache de lecture (bouton 🔄).
 lire.clear = _lire_cache.clear  # type: ignore[attr-defined]
+
+
+def precharger(tables) -> None:
+    """Réchauffe le cache de plusieurs tables EN PARALLÈLE (une requête réseau chacune).
+
+    Ne lève jamais : en cas d'échec, la lecture normale (`lire`) refait la requête et gère l'erreur.
+    Sans cela, l'app lit ses ~12 tables l'une après l'autre à chaque expiration du cache.
+    """
+    try:
+        from streamlit.runtime.scriptrunner import add_script_run_ctx, get_script_run_ctx
+
+        uid = _utilisateur_actif()
+        _client()  # créé une seule fois, ici, avant les threads
+        ctx = get_script_run_ctx()
+        taches = [(t, _version(uid, t)) for t in tables if t in SCHEMA]
+
+        def lire_une(arg):
+            t, v = arg
+            if ctx is not None:
+                add_script_run_ctx(threading.current_thread(), ctx)
+            try:
+                _lire_cache(t, uid, v)
+            except Exception:
+                pass
+
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            list(ex.map(lire_une, taches))
+    except Exception:
+        pass
 
 
 def _payload_utilisateur(table: str, rec: dict) -> dict:
@@ -102,7 +157,7 @@ def _conflit_utilisateur(table: str, conflit: str) -> str:
 def inserer(table: str, rec: dict) -> dict | None:
     """Insère une ligne sous le compte courant et la renvoie (avec son id)."""
     res = _client().table(table).insert(_payload_utilisateur(table, rec)).execute()
-    lire.clear()
+    _invalider(table)
     return res.data[0] if res.data else None
 
 
@@ -114,7 +169,7 @@ def modifier(table: str, id_, rec: dict, cle: str = "id") -> None:
     if table in TABLES_PAR_UTILISATEUR:
         q = q.eq("user_id", _utilisateur_actif())
     q.execute()
-    lire.clear()
+    _invalider(table)
 
 
 def supprimer(table: str, valeur, cle: str = "id") -> None:
@@ -123,7 +178,7 @@ def supprimer(table: str, valeur, cle: str = "id") -> None:
     if table in TABLES_PAR_UTILISATEUR:
         q = q.eq("user_id", _utilisateur_actif())
     q.execute()
-    lire.clear()
+    _invalider(table)
 
 
 def upsert(table: str, recs: list[dict], conflit: str) -> None:
@@ -132,7 +187,7 @@ def upsert(table: str, recs: list[dict], conflit: str) -> None:
     for i in range(0, len(recs), 500):
         lot = [_payload_utilisateur(table, r) for r in recs[i:i + 500]]
         _client().table(table).upsert(lot, on_conflict=conflit_db).execute()
-    lire.clear()
+    _invalider(table)
 
 
 def appliquer_modifs(table: str, avant: pd.DataFrame, apres: pd.DataFrame) -> tuple[int, int, int]:

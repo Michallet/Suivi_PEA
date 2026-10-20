@@ -346,3 +346,32 @@ Les images ne sont ni stockées ni commitées. **Tests avec données fictives un
 Test UI fait avec `streamlit.testing` (AppTest) sur la fonction isolée, Supabase/Yahoo/Gemini simulés.
 **Pistes** : mémoriser « nom courtier → ISIN » (nouvelle table) pour ne corriger un ISIN qu'une fois ; lire aussi le cash/total
 du courtier pour proposer un versement ; dividendes.
+
+
+## ⚡ v9.1 — Audit perf & sécurité (20/10/2026)
+
+**Causes de lenteur trouvées** : (1) chaque écriture vidait le cache de TOUTES les tables (et l'app écrit à chaque
+actualisation de cours : `tickers`, `snapshots`) ; (2) ~12 lectures Supabase en série ; (3) cache Yahoo « par lot » :
+ajouter un titre re-téléchargeait tous les autres, et un échec était mémorisé 6 h ; (4) chaque clic relançait tout le script
+(5 onglets, graphiques Plotly compris).
+
+**Corrections** (comportement inchangé) :
+- `db.py` : version de cache **par (compte, table)** — `_invalider(table)` remplace `lire.clear()` dans les écritures ;
+  `db.precharger()` lit toutes les tables **en parallèle** (jamais bloquant : un échec est relu normalement ensuite) ;
+  `lire.clear()` / `rafraichir()` (bouton 🔄) vident toujours tout.
+- `donnees.py` : cache **par titre** (cours 5 min, fondamentaux 6 h), téléchargements en parallèle ; échec = 1 min (cours) /
+  5 min (fondamentaux). `cours_batch.clear()` / `fondamentaux_batch.clear()` conservés.
+- `app.py` : `@st.fragment` sur **Historique, Projet, Watchlist, Saisie** : un clic dans ces onglets ne relance plus toute la
+  page (les écritures finissent toujours par `st.rerun()` complet). Secret facultatif `DEBUG_PERF = true` : affiche les temps
+  (base / cours / fondamentaux / calculs) en bas de page. Import par captures : le type d'image est vérifié sur les octets
+  (PNG/JPEG/WebP), garde « demo » aussi côté serveur.
+- Sécurité : `.gitignore` (secrets, `seed_pea.sql`, CSV), `.streamlit/config.toml` (upload 10 Mo, erreurs non détaillées,
+  pas de télémétrie), `securite.sql` (optionnel : retire les droits `anon`/`authenticated` sur les tables).
+
+**Vérifié** : 19 tests (`pytest -q`), dont préchargement parallèle (0,35 s contre 1,8 s en série avec 150 ms de latence simulée),
+invalidation par table, isolation entre comptes, cache Yahoo ; app complète lancée via `streamlit.testing` avec Supabase/Yahoo
+simulés (comptes demo et personnel, toutes les actions de Saisie). **Non vérifié** : gain réel sur Streamlit Cloud (utiliser
+`DEBUG_PERF`), comportement des fragments au toucher (AppTest relance toujours toute la page).
+**Hors périmètre / à surveiller** : mise en veille de Streamlit Community Cloud et pause du projet Supabase gratuit après
+inactivité (non corrigeables dans le code) ; région Supabase vs serveurs Streamlit ; mots de passe en clair dans les secrets
+(standard Streamlit) ; le compte démo est modifiable par tous sans plafond d'écriture.
