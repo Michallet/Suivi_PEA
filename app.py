@@ -18,7 +18,6 @@ import calculs as C
 import db
 import donnees as D
 import llm
-import recherche as R
 from schema import SCHEMA
 
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
