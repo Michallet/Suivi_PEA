@@ -16,7 +16,7 @@ import import_ecran as IE
 import llm
 
 MAX_CANDIDATS = 3
-MAX_SUGGESTIONS_PAR_JOUR = 10  # suggestions IA à la demande, comptées par session (voir app.py)
+MAX_SUGGESTIONS_PAR_JOUR = 20  # suggestions IA à la demande, comptées par session (voir app.py)
 
 SYSTEME_DEFAUT = (
     "Tu aides un investisseur à repérer UN concurrent coté d'une entreprise cotée, pour comparer leurs "
