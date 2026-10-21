@@ -32,6 +32,12 @@ CHRONO = {"debut": time.perf_counter()}  # affiché en bas de page si le secret 
 def jalon(nom: str) -> None:
     CHRONO[nom] = time.perf_counter()
 
+def fichiers_obsoletes() -> list[str]:
+    """Modules déployés trop anciens (copie partielle des fichiers) : évite un plantage obscur."""
+    attendus = {"donnees.py": (D, "ohlc_batch"), "import_ecran.py": (IE, "noms_proches")}
+    return [f for f, (mod, attr) in attendus.items() if not hasattr(mod, attr)]
+
+
 SEUIL_CONCENTRATION = 25.0  # % des titres au-delà duquel on alerte
 BENCHMARKS = {"MSCI World (CW8)": "CW8.PA", "CAC 40": "^FCHI", "Euro Stoxx 50": "^STOXX50E"}
 VERT, ROUGE = "#16a34a", "#dc2626"
@@ -139,6 +145,10 @@ if not connecte:
 store = db
 marche_fn = D.cours_batch
 fonds_fn = D.fondamentaux_batch
+
+if fichiers_obsoletes():
+    st.warning("Fichiers à mettre à jour sur GitHub : " + ", ".join(fichiers_obsoletes())
+               + ". Certaines fonctions (indicateurs techniques, concurrent) sont désactivées.")
 
 if "flash" in st.session_state:
     st.toast(st.session_state.pop("flash"))
@@ -361,6 +371,10 @@ def selecteur_vue(ctx: str) -> str:
 
 def calculer_techniques(tickers) -> dict:
     """{ticker: analyse technique}. Un téléchargement par titre, en parallèle, cache 1 h."""
+    if not hasattr(D, "ohlc_batch"):
+        st.error("Indicateurs techniques indisponibles : `donnees.py` n'est pas à jour sur GitHub "
+                 "(fonction `ohlc_batch` absente). Remplacez-le par la dernière version, puis redémarrez l'app.")
+        return {}
     valides = tuple(dict.fromkeys(t for t in tickers if isinstance(t, str) and t))
     return {t: TECH.analyser(df) for t, df in D.ohlc_batch(valides).items()} if valides else {}
 
@@ -388,7 +402,8 @@ def est_etf(nom, f: dict | None) -> bool:
     if "ETF" in n or "UCITS" in n:
         return True
     f = f or {}
-    return bool((_present(f.get("net_assets")) or _present(f.get("expense_ratio"))) and not _present(f.get("ca")))
+    return bool((_present(f.get("net_assets")) or _present(f.get("expense_ratio")))
+                and not _present(f.get("ca")) and not _present(f.get("per")) and not _present(f.get("capi")))
 
 
 def concurrent_de(isin: str) -> dict | None:
@@ -474,9 +489,10 @@ def afficher_comparaison(nom: str, conc: dict, lignes: list) -> None:
                "Données Yahoo, indicatives.")
 
 
-def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str) -> None:
-    """Sous les fondamentaux d'une action : comparaison avec son concurrent (à la demande) et édition."""
-    if est_etf(nom, f):
+def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str, forcer: bool = False) -> None:
+    """Sous les fondamentaux d'une action : comparaison avec son concurrent (à la demande) et édition.
+    `forcer` : pas de détection d'ETF (choix explicite de l'utilisateur dans « Concurrents »)."""
+    if not forcer and est_etf(nom, f):
         return
     k = f"{ctx}_{isin}"
     conc = concurrent_de(isin)
@@ -505,7 +521,8 @@ def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str) -> None:
     tk_c = st.text_input("Ticker Yahoo (facultatif)", key=f"ctk_{k}", placeholder="ex : SIE.DE")
     cle_api = auth.secret("GEMINI_API_KEY")
     n_ia = sum(1 for d in st.session_state.get("conc_appels", []) if d == maintenant().date())
-    ia_ok = bool(cle_api) and not mode_demo and n_ia < CONC.MAX_SUGGESTIONS_PAR_JOUR
+    ia_ok = (bool(cle_api) and not mode_demo and n_ia < CONC.MAX_SUGGESTIONS_PAR_JOUR
+             and hasattr(IE, "noms_proches"))
     b1, b2, b3 = st.columns(3)
     if b1.button("💾 Enregistrer", key=f"csave_{k}", type="primary"):
         c, err = CONC.preparer_concurrent(isin_c, tk_c, isin, resoudre_concurrent)
@@ -567,6 +584,21 @@ def carte_ligne(r, ctx: str, vue: str = "Fondamentaux", techs: dict | None = Non
             else:
                 st.markdown(_puces(position + lignes_fondamentaux(f) + ident))
                 bloc_concurrent(r.isin, r.nom, f, ctx)
+
+
+def bloc_concurrents_portefeuille(positions: pd.DataFrame) -> None:
+    """Ajout / modification / comparaison du concurrent de N'IMPORTE QUELLE ligne détenue
+    (indépendant de la Watchlist et de la détection d'ETF)."""
+    if positions.empty:
+        return
+    lignes = positions.sort_values("valeur", ascending=False)
+    noms = dict(zip(lignes["isin"], lignes["nom"]))
+    with st.expander("⚖️ Concurrents des lignes"):
+        st.caption("Un concurrent coté par titre, pour comparer les multiples (PER, EV/EBITDA, marges).")
+        isin = st.selectbox("Titre", list(noms), key="pfc_sel", format_func=lambda i: (
+            noms[i] + (f" → {concurrent_de(i)['nom']}" if concurrent_de(i) else " (aucun concurrent)")))
+        ticker = tmap.loc[isin, "ticker"] if isin in tmap.index else None
+        bloc_concurrent(isin, noms[isin], fonds.get(ticker, {}) if ticker else {}, f"pfc", forcer=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -1483,6 +1515,7 @@ def onglet_portefeuille() -> None:
             techs = calculer_techniques(pos["ticker"]) if vue == "Techniques" else {}
             for r in pos.sort_values("valeur", ascending=False).itertuples():
                 carte_ligne(r, "pf", vue, techs)
+            bloc_concurrents_portefeuille(pos)
 
             # -- KPIs étendus --------------------------------------------- #
             col1, col2, col3 = st.columns(3)

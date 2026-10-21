@@ -416,3 +416,11 @@ rendu mobile, comportement tactile des fragments (AppTest relance toujours toute
 doublures de `calculs`/`llm`). Seul changement : l'option du sélecteur s'affiche « Indicateurs techniques »
 (`format_func`, la valeur interne reste « Techniques »). **Non rejoué ici** : `test_ui_smoke.py` / `test_perf_cache.py`
 (Streamlit absent, pas de réseau) → lancer `pytest -q` en local avant de pousser.
+
+**Correctif du 21/10/2026 (soir)** : (1) log Streamlit Cloud `module 'donnees' has no attribute 'ohlc_batch'` = `donnees.py`
+non mis à jour sur GitHub (seul `app.py` l'était) ; l'app détecte désormais un `donnees.py`/`import_ecran.py` obsolète
+(`fichiers_obsoletes`, bandeau d'avertissement, fonctions concernées désactivées au lieu de planter).
+**Les 9 fichiers du zip vont ensemble.** (2) Concurrent : nouvelle section « ⚖️ Concurrents des lignes » dans l'onglet
+Portefeuille (sélecteur de titre détenu + ajout/modif/IA/comparaison, clés `*_pfc_*`), indépendante de la Watchlist et de la
+détection d'ETF (`bloc_concurrent(..., forcer=True)`). Détection d'ETF plus prudente (ni PER ni capitalisation).
+Test ajouté : `test_concurrent_depuis_la_section_portefeuille` (non rejoué : pas de Streamlit en dev).
