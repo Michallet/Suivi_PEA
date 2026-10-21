@@ -16,7 +16,7 @@ import import_ecran as IE
 import llm
 
 MAX_CANDIDATS = 3
-MAX_SUGGESTIONS_PAR_JOUR = 20  # suggestions IA à la demande, comptées par session (voir app.py)
+MAX_SUGGESTIONS_PAR_JOUR = getattr(llm, "MAX_SUGGESTIONS_PAR_JOUR", 30)  # à la demande, par session (voir app.py)
 
 SYSTEME_DEFAUT = (
     "Tu aides un investisseur à repérer UN concurrent coté d'une entreprise cotée, pour comparer leurs "
@@ -174,33 +174,22 @@ def _marge(f: dict, cle: str):
 
 
 def lignes_comparaison(ft: dict | None, fc: dict | None) -> list[dict]:
-    """Lignes {label, vt, vc, unite, ecart, type_ecart} ; vt = titre, vc = concurrent.
+    """Lignes {label, vt, vc, unite} ; vt = titre, vc = concurrent (None si indisponible).
 
-    unite : 'x' (multiple), '%' (marge), 'montant' (€). ecart : multiples -> écart relatif en %
-    (type 'pct') ; marges -> écart en points (type 'pts') ; montants -> rapport (type 'ratio').
-    Les montants ne sont comparés que si les DEUX titres cotent en euros (sinon la devise fausserait le rapport).
+    unite : 'x' (multiple), '%' (marge), 'montant' (€). Les montants ne sont donnés que si les DEUX
+    titres cotent en euros (sinon la devise fausserait la comparaison).
     """
     ft, fc = ft or {}, fc or {}
     lignes = []
 
-    def ajouter(label, vt, vc, unite, mode):
-        if vt is None and vc is None:
-            return
-        ecart = None
-        if vt is not None and vc is not None:
-            if mode == "pct" and vt > 0 and vc > 0:
-                ecart = (vt / vc - 1) * 100
-            elif mode == "pts":
-                ecart = vt - vc
-            elif mode == "ratio" and vc > 0:
-                ecart = vt / vc
-        lignes.append({"label": label, "vt": vt, "vc": vc, "unite": unite, "ecart": ecart,
-                       "type_ecart": mode})
+    def ajouter(label, vt, vc, unite):
+        if vt is not None or vc is not None:
+            lignes.append({"label": label, "vt": vt, "vc": vc, "unite": unite})
 
     for label, cle in (("PER", "per"), ("PER prévisionnel", "per_prev"), ("EV/EBITDA", "ev_ebitda")):
-        ajouter(label, _val(ft.get(cle)), _val(fc.get(cle)), "x", "pct")
-    ajouter("Marge nette", _marge(ft, "net_income"), _marge(fc, "net_income"), "%", "pts")
-    ajouter("Marge EBITDA", _marge(ft, "ebitda"), _marge(fc, "ebitda"), "%", "pts")
+        ajouter(label, _val(ft.get(cle)), _val(fc.get(cle)), "x")
+    ajouter("Marge nette", _marge(ft, "net_income"), _marge(fc, "net_income"), "%")
+    ajouter("Marge EBITDA", _marge(ft, "ebitda"), _marge(fc, "ebitda"), "%")
     if ft.get("devise") == "EUR" and fc.get("devise") == "EUR":
-        ajouter("Capitalisation", _val(ft.get("capi")), _val(fc.get("capi")), "montant", "ratio")
+        ajouter("Capitalisation", _val(ft.get("capi")), _val(fc.get("capi")), "montant")
     return lignes

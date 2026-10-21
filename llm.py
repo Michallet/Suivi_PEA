@@ -20,9 +20,11 @@ import requests
 MODELE_DEFAUT = "gemini-3.6-flash"  # surchargeable via le secret GEMINI_MODEL (ex : gemini-3.8-flash)
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{modele}:generateContent"
 VERSION_PROMPT = "v1"
-MAX_APPELS_PAR_JOUR = 200
-MAX_CHAT_PAR_JOUR = 50
-MAX_TOURS_CHAT = 10          # filet de sécurité : le prompt demande des réponses courtes
+# Quotas côté app (2 comptes, palier gratuit Gemini). Les vraies limites sont celles de Google : projet + modèle.
+MAX_APPELS_PAR_JOUR = 30        # analyses de portefeuille / de scénario, par jour et par compte
+MAX_CHAT_PAR_JOUR = 100         # questions au chatbot, par jour et par compte
+MAX_SUGGESTIONS_PAR_JOUR = 30   # suggestions de concurrent « à la demande » (compté dans la session)
+MAX_TOURS_CHAT = 5          # filet de sécurité : le prompt demande des réponses courtes
 MAX_TOKENS_CHAT = 2048
 MAX_MOTS_REPONSE = 300  # filet de sécurité : le prompt demande quelques phrases
 
@@ -405,7 +407,7 @@ def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90,
 # --------------------------------------------------------------------------- #
 MAX_CAPTURES = 8                       # images par import
 MAX_OCTETS_CAPTURES = 15 * 1024 * 1024  # total (limite de requête Gemini : 20 Mo)
-MAX_IMPORTS_PAR_JOUR = 10              # filet de sécurité (compté dans la session, voir app.py)
+MAX_IMPORTS_PAR_JOUR = 30              # filet de sécurité (compté dans la session, voir app.py)
 TYPES_IMAGE = ("image/png", "image/jpeg", "image/webp")
 
 SYSTEME_CAPTURE_DEFAUT = (

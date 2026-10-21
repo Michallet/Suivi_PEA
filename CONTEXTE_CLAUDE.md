@@ -420,7 +420,16 @@ doublures de `calculs`/`llm`). Seul changement : l'option du sélecteur s'affich
 **Correctif du 21/10/2026 (soir)** : (1) log Streamlit Cloud `module 'donnees' has no attribute 'ohlc_batch'` = `donnees.py`
 non mis à jour sur GitHub (seul `app.py` l'était) ; l'app détecte désormais un `donnees.py`/`import_ecran.py` obsolète
 (`fichiers_obsoletes`, bandeau d'avertissement, fonctions concernées désactivées au lieu de planter).
-**Les 9 fichiers du zip vont ensemble.** (2) Concurrent : nouvelle section « ⚖️ Concurrents des lignes » dans l'onglet
-Portefeuille (sélecteur de titre détenu + ajout/modif/IA/comparaison, clés `*_pfc_*`), indépendante de la Watchlist et de la
-détection d'ETF (`bloc_concurrent(..., forcer=True)`). Détection d'ETF plus prudente (ni PER ni capitalisation).
-Test ajouté : `test_concurrent_depuis_la_section_portefeuille` (non rejoué : pas de Streamlit en dev).
+**Les 9 fichiers du zip vont ensemble.** (2) La section « Concurrents des lignes » ajoutée alors a été retirée (doublon avec le bloc de chaque carte).
+
+**Ajustements du 21/10/2026 (nuit)** : comparaison concurrent = **2 colonnes** (titre, concurrent), plus de colonne d'écart
+(`lignes_comparaison` ne renvoie plus `ecart`) ; indicateurs techniques épurés : une ligne « valeur (fourchettes) » par
+indicateur (RSI 50 (survente < 30, surachat > 70) ; stochastique %K ; Bollinger %B en % ; moyennes mobiles « au-dessus de
+x sur 3 »), plus de paramètres ni de mention « atténué » (le filtre de tendance reste actif dans la note).
+**Quotas Gemini** : désormais **dans `llm.py`** (source unique, plus de surcharge dans `app.py`) : analyses 30/jour
+(avant 5), chat 100/jour (avant 20), imports par captures 30 (avant 10), suggestions de concurrent à la demande 30 par
+session (`MAX_SUGGESTIONS_PAR_JOUR`, lue par `concurrents.py`). Les vraies limites du palier gratuit sont celles de Google
+(par projet et par modèle) et changent : en cas d'erreur « Quota », ce sont elles.
+**Concurrent / IA** : `concurrents.py` réutilise les helpers de `llm.py` (`_post`, `_texte_reponse`, `_parser_json`,
+`_message_erreur`, `_en_majuscules`, `PROMPTS_MD`, `ErreurIA`) sans modifier `llm.py` autrement que pour les quotas.
+Vérifié contre le vrai `llm.py` : 18 tests purs (technique + concurrents) passent.

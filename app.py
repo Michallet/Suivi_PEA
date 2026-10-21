@@ -356,9 +356,8 @@ def lignes_fondamentaux(f: dict) -> list[tuple[str, str]]:
 
 
 VUES = ("Fondamentaux", "Techniques")
-TXT_AVERTISSEMENT_TECH = ("Indicateurs calculés sur les clôtures journalières Yahoo (≈ 1 an). Note = moyenne pondérée "
-                          "(moyennes mobiles 40 %, RSI 20 %, stochastique 20 %, Bollinger 20 %) ; verdict : "
-                          "≥ 6 acheter, ≤ 4 vendre. Signal indicatif, pas un conseil en investissement.")
+TXT_AVERTISSEMENT_TECH = ("Note = moyenne pondérée des 4 indicateurs ; ≥ 6 acheter, ≤ 4 vendre. "
+                          "Signal indicatif, pas un conseil en investissement.")
 
 
 def selecteur_vue(ctx: str) -> str:
@@ -386,7 +385,6 @@ def afficher_technique(res: dict | None) -> None:
     st.markdown(f"**{res['emoji']} {res['verdict']}** · note technique **{fmt(res['note'], 1)}/10** · "
                 f"séance du {res['date']:%d/%m/%Y}")
     st.markdown("\n".join(f"- {i['emoji']} **{i['label']}** : {i['detail']}"
-                          + (" _(atténué : contre la tendance)_" if i.get("attenue") else "")
                           for i in res["indicateurs"]))
     st.caption(TXT_AVERTISSEMENT_TECH)
 
@@ -471,28 +469,20 @@ def _cellule(v, unite: str) -> str:
     return f"{fmt(v, 1)}x" if unite == "x" else f"{fmt(v, 1)} %" if unite == "%" else C.formater_gros_nombre(v)
 
 
-def _ecart(e, mode: str) -> str:
-    if e is None:
-        return "—"
-    return f"{fmt(e, 0, True)} %" if mode == "pct" else f"{fmt(e, 1, True)} pt" if mode == "pts" else f"×{fmt(e, 1)}"
-
-
 def afficher_comparaison(nom: str, conc: dict, lignes: list) -> None:
     if not lignes:
         st.caption(f"Fondamentaux indisponibles pour comparer avec {conc['nom']}.")
         return
-    tab = [f"| | {_court(nom)} | {_court(conc['nom'])} | Écart |", "|---|--:|--:|--:|"]
-    tab += [f"| {l['label']} | {_cellule(l['vt'], l['unite'])} | {_cellule(l['vc'], l['unite'])} | "
-            f"{_ecart(l['ecart'], l['type_ecart'])} |" for l in lignes]
+    tab = [f"| | {_court(nom)} | {_court(conc['nom'])} |", "|---|--:|--:|"]
+    tab += [f"| {l['label']} | {_cellule(l['vt'], l['unite'])} | {_cellule(l['vc'], l['unite'])} |"
+            for l in lignes]
     st.markdown("\n".join(tab))
-    st.caption("Écart = titre par rapport au concurrent (multiples : écart relatif ; marges : points). "
-               "Données Yahoo, indicatives.")
+    st.caption("Marges = résultat ÷ chiffre d'affaires. Données Yahoo, indicatives.")
 
 
-def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str, forcer: bool = False) -> None:
-    """Sous les fondamentaux d'une action : comparaison avec son concurrent (à la demande) et édition.
-    `forcer` : pas de détection d'ETF (choix explicite de l'utilisateur dans « Concurrents »)."""
-    if not forcer and est_etf(nom, f):
+def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str) -> None:
+    """Sous les fondamentaux d'une action : comparaison avec son concurrent (à la demande) et édition."""
+    if est_etf(nom, f):
         return
     k = f"{ctx}_{isin}"
     conc = concurrent_de(isin)
@@ -584,21 +574,6 @@ def carte_ligne(r, ctx: str, vue: str = "Fondamentaux", techs: dict | None = Non
             else:
                 st.markdown(_puces(position + lignes_fondamentaux(f) + ident))
                 bloc_concurrent(r.isin, r.nom, f, ctx)
-
-
-def bloc_concurrents_portefeuille(positions: pd.DataFrame) -> None:
-    """Ajout / modification / comparaison du concurrent de N'IMPORTE QUELLE ligne détenue
-    (indépendant de la Watchlist et de la détection d'ETF)."""
-    if positions.empty:
-        return
-    lignes = positions.sort_values("valeur", ascending=False)
-    noms = dict(zip(lignes["isin"], lignes["nom"]))
-    with st.expander("⚖️ Concurrents des lignes"):
-        st.caption("Un concurrent coté par titre, pour comparer les multiples (PER, EV/EBITDA, marges).")
-        isin = st.selectbox("Titre", list(noms), key="pfc_sel", format_func=lambda i: (
-            noms[i] + (f" → {concurrent_de(i)['nom']}" if concurrent_de(i) else " (aucun concurrent)")))
-        ticker = tmap.loc[isin, "ticker"] if isin in tmap.index else None
-        bloc_concurrent(isin, noms[isin], fonds.get(ticker, {}) if ticker else {}, f"pfc", forcer=True)
 
 
 # --------------------------------------------------------------------------- #
@@ -1515,7 +1490,6 @@ def onglet_portefeuille() -> None:
             techs = calculer_techniques(pos["ticker"]) if vue == "Techniques" else {}
             for r in pos.sort_values("valeur", ascending=False).itertuples():
                 carte_ligne(r, "pf", vue, techs)
-            bloc_concurrents_portefeuille(pos)
 
             # -- KPIs étendus --------------------------------------------- #
             col1, col2, col3 = st.columns(3)

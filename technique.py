@@ -22,8 +22,7 @@ import numpy as np
 import pandas as pd
 
 POIDS = {"mm": 0.40, "rsi": 0.20, "stoch": 0.20, "bb": 0.20}
-LIBELLES = {"mm": "Moyennes mobiles", "rsi": "RSI (14)", "stoch": "Stochastique (14, 3, 3)",
-            "bb": "Bollinger (20, 2σ)"}
+LIBELLES = {"mm": "Moyennes mobiles", "rsi": "RSI", "stoch": "Stochastique", "bb": "Bollinger"}
 ATTENUATION_CONTRE_TENDANCE = 0.5
 SEUIL_INDICATEUR = 0.5            # |score| à partir duquel un indicateur dit Acheter / Vendre
 NOTE_ACHAT, NOTE_VENTE = 6.0, 4.0  # seuils du verdict global sur la note /10
@@ -100,20 +99,21 @@ def bollinger(close: pd.Series, n: int = 20, ecarts: float = 2.0) -> pd.DataFram
 def _score_mm(close: pd.Series) -> dict | None:
     """Prix face à MM20/50/200 et croisement MM50/MM200 : chaque test vaut +1 (haussier) ou -1."""
     dernier = float(close.iloc[-1])
-    tests, textes = [], []
+    tests, jours = [], []
     valeurs = {n: sma(close, n).iloc[-1] for n in (20, 50, 200)}
     for n, v in valeurs.items():
         if pd.notna(v):
             tests.append(1.0 if dernier > v else -1.0)
-            textes.append(f"MM{n} {_n(v, 2)}")
+            jours.append(str(n))
+    au_dessus, total = sum(1 for t in tests if t > 0), len(tests)
     if pd.notna(valeurs[50]) and pd.notna(valeurs[200]):
         tests.append(1.0 if valeurs[50] > valeurs[200] else -1.0)
     if not tests:
         return None
     score = float(np.mean(tests))
     return {"cle": "mm", "score": score,
-            "detail": f"cours {_n(dernier, 2)} · " + " · ".join(textes)
-                      + ("" if pd.notna(valeurs[200]) else " · MM200 indisponible (historique court)")}
+            "detail": f"cours au-dessus de {au_dessus} moyenne{'s' if au_dessus > 1 else ''} sur {total} "
+                      f"({', '.join(jours)} jours)"}
 
 
 def _score_rsi(close: pd.Series) -> dict | None:
@@ -121,25 +121,23 @@ def _score_rsi(close: pd.Series) -> dict | None:
     if pd.isna(v):
         return None
     return {"cle": "rsi", "score": _courbe(v, COURBE_RSI),
-            "detail": f"{_n(v)} (survente < 30, surachat > 70)"}
+            "detail": f"{_n(v, 0)} (survente < 30, surachat > 70)"}
 
 
 def _score_stoch(df: pd.DataFrame) -> dict | None:
     k, d = stochastique(df["High"], df["Low"], df["Close"])
     if pd.isna(k.iloc[-1]):
         return None
-    detail = f"%K {_n(k.iloc[-1])}" + (f" · %D {_n(d.iloc[-1])}" if pd.notna(d.iloc[-1]) else "")
     return {"cle": "stoch", "score": _courbe(k.iloc[-1], COURBE_STOCH),
-            "detail": detail + " (survente < 20, surachat > 80)"}
+            "detail": f"{_n(k.iloc[-1], 0)} (survente < 20, surachat > 80)"}
 
 
 def _score_bb(close: pd.Series) -> dict | None:
     pb = bollinger(close)["pb"].iloc[-1]
     if pd.isna(pb):
         return None
-    pos = ("sous la bande basse" if pb < 0 else "au-dessus de la bande haute" if pb > 1
-           else "dans les bandes")
-    return {"cle": "bb", "score": _courbe(pb, COURBE_PB), "detail": f"%B {_n(pb, 2)} ({pos})"}
+    return {"cle": "bb", "score": _courbe(pb, COURBE_PB),
+            "detail": f"{_n(pb * 100, 0)} % (survente < 0 %, surachat > 100 %)"}
 
 
 # --------------------------------------------------------------------------- #
