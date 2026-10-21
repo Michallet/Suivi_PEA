@@ -20,8 +20,8 @@ import requests
 MODELE_DEFAUT = "gemini-3.6-flash"  # surchargeable via le secret GEMINI_MODEL (ex : gemini-3.8-flash)
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{modele}:generateContent"
 VERSION_PROMPT = "v1"
-MAX_APPELS_PAR_JOUR = 20
-MAX_CHAT_PAR_JOUR = 30
+MAX_APPELS_PAR_JOUR = 200
+MAX_CHAT_PAR_JOUR = 50
 MAX_TOURS_CHAT = 10          # filet de sécurité : le prompt demande des réponses courtes
 MAX_TOKENS_CHAT = 2048
 MAX_MOTS_REPONSE = 300  # filet de sécurité : le prompt demande quelques phrases
