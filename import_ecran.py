@@ -138,6 +138,14 @@ def _score_nom(mots_c: list[str], tronque: bool, mots_k: list[str]) -> tuple[flo
     return trouves / len(mots_c), len(set(mots_c) & set(mots_k)) / union
 
 
+def noms_proches(a: str, b: str, seuil: float = 0.5) -> bool:
+    """Vrai si au moins `seuil` des mots du nom `a` figurent dans le nom `b` (accents/casse/formes
+    juridiques ignorés) : « Siemens » ~ « SIEMENS AG ». Sert à vérifier qu'un ISIN désigne bien la société attendue."""
+    mots_a, tronque = _normaliser_nom(a)
+    couverture, _ = _score_nom(mots_a, tronque, _normaliser_nom(b)[0])
+    return couverture >= seuil
+
+
 def _par_nom(nom: str, connus: dict[str, str]) -> str | None:
     """ISIN du nom connu qui ressemble le plus, seulement s'il est sans ambiguïté."""
     mots_c, tronque = _normaliser_nom(nom)

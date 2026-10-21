@@ -375,3 +375,44 @@ simulés (comptes demo et personnel, toutes les actions de Saisie). **Non vérif
 **Hors périmètre / à surveiller** : mise en veille de Streamlit Community Cloud et pause du projet Supabase gratuit après
 inactivité (non corrigeables dans le code) ; région Supabase vs serveurs Streamlit ; mots de passe en clair dans les secrets
 (standard Streamlit) ; le compte démo est modifiable par tous sans plafond d'écriture.
+
+
+## 📐 v9.2 — Indicateurs techniques & concurrent (21/10/2026)
+
+**Indicateurs techniques** (`technique.py`, pur ; `donnees.ohlc_batch`) — dans Portefeuille, Projet et Watchlist, un sélecteur
+**Fondamentaux | Techniques** (`selecteur_vue`) commande le contenu de « Détails » de toutes les cartes. Les historiques
+(~1 an, High/Low/Close ajustés) ne sont téléchargés **que** si « Techniques » est choisi (un téléchargement par titre, en
+parallèle, cache 1 h). Indicateurs : moyennes mobiles 20/50/200 + croisement 50/200 (poids 40 %), RSI 14 de Wilder (20 %),
+stochastique 14,3,3 (20 %), Bollinger 20 ±2σ (20 %). Chaque indicateur a un score −1…+1 (seuils classiques = ±0,5 :
+RSI 30/70, stoch 20/80, bandes) ; **note /10 = 5 + 5 × moyenne pondérée** ; verdict global ≥ 6 Acheter, ≤ 4 Vendre.
+**Filtre de tendance** : en tendance nette (MM ≥ +0,5 / ≤ −0,5), les signaux d'oscillateurs contraires comptent pour moitié
+(sinon un titre en hausse régulière sort « Neutre » parce que suracheté). Poids absents (historique court) redistribués.
+Constantes réglables en tête de `technique.py`. Signal indicatif : pas un conseil (l'IA, elle, reste sans recommandation).
+Portefeuille est désormais un `@st.fragment` (le sélecteur ne relance pas toute la page).
+
+**Concurrent** (`concurrents.py`, pur ; réseau injecté) — **un seul par titre**, colonnes `tickers.concurrent_isin/_ticker/_nom`
+(**SQL à exécuter une fois : `migration_concurrent.sql`**, aussi ajouté à `schema.sql` ; `schema.py` mis à jour). Dans
+« Détails › Fondamentaux » de chaque **action** (pas les ETF, détectés par nom « ETF/UCITS » ou actifs sous gestion sans CA) :
+bouton « ➕ Ajouter un concurrent » (ISIN et/ou ticker Yahoo, validés) ; une fois défini : interrupteur « ⚖️ Comparer à … »
+(fondamentaux du concurrent téléchargés **à la demande**), « ✏️ » pour modifier, « 🗑 Retirer ».
+**IA** : (1) automatiquement **une seule fois à la création d'un titre** (`enregistrer_ticker(..., suggerer=True)`, flux
+Transaction et Watchlist ; pas pour l'import par captures ni la maintenance ; ignoré en démo / sans clé / pour un ETF) ;
+(2) bouton « 💡 IA » à la demande (10 par session). L'IA propose jusqu'à 3 candidats (JSON) ; on garde le premier dont
+l'ISIN passe Luhn, est résolu par Yahoo **et** dont le nom Yahoo ressemble au nom annoncé (garde-fou anti-ISIN halluciné).
+Données envoyées à Gemini : nom, ISIN, secteur/industrie, capitalisation du titre — rien du portefeuille.
+Prompt par défaut dans `concurrents.py` (critères : concurrent direct, coté, même pays, taille comparable, jamais la même
+société) ; surchargeable par une section `## concurrent` dans `prompts.md`.
+Comparaison : PER, PER prévisionnel, EV/EBITDA (écart relatif), marges nette et EBITDA (écart en points), capitalisation
+seulement si les deux cotent en €. Si les colonnes SQL n'existent pas, l'enregistrement affiche un message clair (le reste
+de l'app fonctionne).
+
+**Tests** : `pytest -q` → 43 tests (dont `tests/test_ui_smoke.py` : parcours complet de l'app avec Supabase/Yahoo/Gemini
+simulés — vues techniques, concurrent, création de titre, compte démo). Nouveaux : `test_technique.py`, `test_concurrents.py`.
+**Non vérifié** : données Yahoo réelles (fondamentaux concurrent, historiques), qualité des suggestions Gemini réelles,
+rendu mobile, comportement tactile des fragments (AppTest relance toujours toute la page).
+
+**Reprise du 21/10/2026 (session suivante)** : relecture complète du livrable v9.2 après interruption — code cohérent
+(compilation, aucun nom non défini dans `app.py`, `test_technique.py` + `test_concurrents.py` repassés hors Streamlit avec
+doublures de `calculs`/`llm`). Seul changement : l'option du sélecteur s'affiche « Indicateurs techniques »
+(`format_func`, la valeur interne reste « Techniques »). **Non rejoué ici** : `test_ui_smoke.py` / `test_perf_cache.py`
+(Streamlit absent, pas de réseau) → lancer `pytest -q` en local avant de pousser.

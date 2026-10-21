@@ -88,15 +88,16 @@ def valider_ticker(ticker: str, nom: str | None = None) -> dict | None:
 # Cours (cache court) et fondamentaux (cache long), en parallèle
 # --------------------------------------------------------------------------- #
 TTL_COURS, TTL_FONDS, TTL_ECHEC_COURS, TTL_ECHEC_FONDS = 300, 6 * 3600, 60, 300
+TTL_OHLC, TTL_ECHEC_OHLC = 3600, 300  # historiques journaliers (indicateurs techniques)
 
 
 @st.cache_resource
 def _magasin() -> dict:
     """{catégorie: {ticker: (horodatage, valeur, durée de validité)}} + verrou, partagé entre sessions."""
-    return {"cours": {}, "fonds": {}, "verrou": threading.Lock()}
+    return {"cours": {}, "fonds": {}, "ohlc": {}, "verrou": threading.Lock()}
 
 
-def _par_titre(categorie: str, tickers: tuple, lire, ttl: int, ttl_echec: int, ok):
+def _par_titre(categorie: str, tickers: tuple, lire, ttl: int, ttl_echec: int, ok, spinner: str | None = None):
     """({ticker: valeur}, horodatage le plus ancien). Seuls les titres absents/périmés sont téléchargés,
     en parallèle. `ok(valeur)` dit si la lecture a réussi (sinon durée de validité courte)."""
     m = _magasin()
@@ -105,7 +106,7 @@ def _par_titre(categorie: str, tickers: tuple, lire, ttl: int, ttl_echec: int, o
         a_lire = [t for t in dict.fromkeys(tickers)
                   if t not in m[categorie] or maintenant - m[categorie][t][0] > m[categorie][t][2]]
     if a_lire:
-        with st.spinner("Mise à jour des cours…") if categorie == "cours" else _sans_spinner():
+        with st.spinner(spinner) if spinner else _sans_spinner():
             with ThreadPoolExecutor(max_workers=5) as ex:
                 res = list(ex.map(lire, a_lire))
         with m["verrou"]:
@@ -127,7 +128,8 @@ class _sans_spinner:
 
 def cours_batch(tickers: tuple) -> tuple[dict, datetime]:
     valeurs, horo = _par_titre("cours", tuple(tickers), lire_cours, TTL_COURS, TTL_ECHEC_COURS,
-                               lambda r: r.get("prix") is not None)
+                               lambda r: r.get("prix") is not None,
+                               spinner="Mise à jour des cours…")
     return valeurs, datetime.fromtimestamp(horo, ZoneInfo("Europe/Paris"))
 
 
@@ -167,12 +169,39 @@ def _lire_info(ticker: str) -> dict:
         "ca": info.get("totalRevenue"),
         "capi": info.get("marketCap"),
         "secteur_yahoo": info.get("sector"),  # en anglais : surchargeable dans « Secteurs »
+        "industrie": info.get("industry"),
+        "devise": info.get("currency"),  # devise de cotation (capitalisation)
         "net_assets": net_assets,
         "expense_ratio": expense_ratio,
         "net_income": net_income,
         "ebitda": ebitda,
         "ev_ebitda": ev_ebitda,
     }
+
+
+def lire_ohlc(ticker: str):
+    """Bougies journalières (High, Low, Close) sur ~1 an, ajustées des dividendes ; None en cas d'échec."""
+    try:
+        h = yf.Ticker(ticker).history(period="1y")
+        h = h[["High", "Low", "Close"]].dropna()
+        if h.empty:
+            return None
+        if getattr(h.index, "tz", None) is not None:
+            h.index = h.index.tz_localize(None)
+        return h
+    except Exception:
+        return None
+
+
+def ohlc_batch(tickers: tuple) -> dict:
+    """{ticker: DataFrame | None}, un téléchargement par titre (parallèle, cache 1 h, échec 5 min)."""
+    valeurs, _ = _par_titre("ohlc", tuple(tickers), lire_ohlc, TTL_OHLC, TTL_ECHEC_OHLC,
+                            lambda r: r is not None and len(r) >= 20,
+                            spinner="Calcul des indicateurs techniques…")
+    return valeurs
+
+
+ohlc_batch.clear = lambda: _vider("ohlc")  # type: ignore[attr-defined]
 
 
 def fondamentaux_batch(tickers: tuple) -> dict:

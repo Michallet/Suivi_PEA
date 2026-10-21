@@ -17,10 +17,12 @@ import streamlit as st
 
 import auth
 import calculs as C
+import concurrents as CONC
 import db
 import donnees as D
 import import_ecran as IE
 import llm
+import technique as TECH
 from schema import SCHEMA
 
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
@@ -101,15 +103,22 @@ def nom_de(tmap: pd.DataFrame, isin: str) -> str:
     return isin if n is None or pd.isna(n) else n
 
 
-def enregistrer_ticker(isin: str, ticker: str, nom: str | None = None) -> str | None:
-    """Valide puis mémorise ISIN -> ticker. Retourne un message d'erreur ou None."""
+def enregistrer_ticker(isin: str, ticker: str, nom: str | None = None, suggerer: bool = True) -> str | None:
+    """Valide puis mémorise ISIN -> ticker. Retourne un message d'erreur ou None.
+
+    À la CRÉATION d'un titre (ISIN encore inconnu), propose un concurrent via l'IA (une seule fois) si
+    `suggerer` ; les créations en lot (import, maintenance) passent `suggerer=False`.
+    """
     v = D.valider_ticker(ticker, nom)
     if v is None:
         return f"Aucun cours trouvé pour « {ticker} »."
     if v["devise"] not in (None, "EUR"):
         return f"« {ticker} » cote en {v['devise']} : indiquez la cotation européenne en € (ex : MC.PA)."
+    nouveau = isin not in tmap.index
     db.upsert("tickers", [{"isin": isin, "ticker": ticker, "nom": v["nom"], "dernier_prix": v["prix"],
                            "dernier_prix_at": maintenant().isoformat()}], "isin")
+    if suggerer and nouveau:
+        suggerer_a_la_creation(isin, ticker, v["nom"])
     return None
 
 
@@ -133,6 +142,8 @@ fonds_fn = D.fondamentaux_batch
 
 if "flash" in st.session_state:
     st.toast(st.session_state.pop("flash"))
+if "flash_conc" in st.session_state:
+    st.toast(st.session_state.pop("flash_conc"), icon="⚖️")
 
 t1, t2, t3 = st.columns([4, 1, 1], vertical_alignment="center")
 t1.title("📈 Mon PEA")
@@ -144,6 +155,7 @@ if mode_demo:
 if t2.button("🔄", help="Actualiser les cours"):
     D.cours_batch.clear()
     D.fondamentaux_batch.clear()
+    D.ohlc_batch.clear()
     db.rafraichir()
     st.rerun()
 if t3.button("🔒", help="Se déconnecter"):
@@ -185,7 +197,8 @@ if tables_manquantes:
                + ". Exécutez la version à jour de schema.sql dans Supabase.")
 
 tmap = (tick.set_index("isin") if not tick.empty
-        else pd.DataFrame(columns=["ticker", "nom", "dernier_prix", "dernier_prix_at"]))
+        else pd.DataFrame(columns=["ticker", "nom", "dernier_prix", "dernier_prix_at",
+                                   "concurrent_isin", "concurrent_ticker", "concurrent_nom"]))
 sect_dict = dict(zip(sect["isin"], sect["secteur"]))
 
 # --------------------------------------------------------------------------- #
@@ -332,26 +345,230 @@ def lignes_fondamentaux(f: dict) -> list[tuple[str, str]]:
     return [(lbl, fn(f[k])) for lbl, k, fn in defs if _present(f.get(k))]
 
 
-def carte_ligne(r, ctx: str) -> None:
-    """Carte d'une ligne détenue (réelle ou projetée) : synthèse, lien, détails + fondamentaux."""
+VUES = ("Fondamentaux", "Techniques")
+TXT_AVERTISSEMENT_TECH = ("Indicateurs calculés sur les clôtures journalières Yahoo (≈ 1 an). Note = moyenne pondérée "
+                          "(moyennes mobiles 40 %, RSI 20 %, stochastique 20 %, Bollinger 20 %) ; verdict : "
+                          "≥ 6 acheter, ≤ 4 vendre. Signal indicatif, pas un conseil en investissement.")
+
+
+def selecteur_vue(ctx: str) -> str:
+    """Bascule « Fondamentaux / Techniques » des cartes (le téléchargement des historiques n'a lieu
+    que si « Techniques » est choisi)."""
+    return st.radio("Affichage des détails", VUES, horizontal=True, key=f"vue_{ctx}",
+                    label_visibility="collapsed",
+                    format_func=lambda v: "Indicateurs techniques" if v == "Techniques" else v)
+
+
+def calculer_techniques(tickers) -> dict:
+    """{ticker: analyse technique}. Un téléchargement par titre, en parallèle, cache 1 h."""
+    valides = tuple(dict.fromkeys(t for t in tickers if isinstance(t, str) and t))
+    return {t: TECH.analyser(df) for t, df in D.ohlc_batch(valides).items()} if valides else {}
+
+
+def afficher_technique(res: dict | None) -> None:
+    if not res or not res.get("ok"):
+        st.caption((res or {}).get("raison") or "Historique de cours indisponible pour ce titre.")
+        return
+    st.markdown(f"**{res['emoji']} {res['verdict']}** · note technique **{fmt(res['note'], 1)}/10** · "
+                f"séance du {res['date']:%d/%m/%Y}")
+    st.markdown("\n".join(f"- {i['emoji']} **{i['label']}** : {i['detail']}"
+                          + (" _(atténué : contre la tendance)_" if i.get("attenue") else "")
+                          for i in res["indicateurs"]))
+    st.caption(TXT_AVERTISSEMENT_TECH)
+
+
+def _puces(details: list) -> str:
+    return "\n".join(f"- {k} : **{v}**" for k, v in details)
+
+
+# -- Concurrent (un seul par titre, stocké dans tickers.concurrent_*) ------------------------------
+def est_etf(nom, f: dict | None) -> bool:
+    """Un ETF n'a pas de concurrent à comparer : détecté par le nom, ou par des actifs sous gestion sans CA."""
+    n = str(nom or "").upper()
+    if "ETF" in n or "UCITS" in n:
+        return True
+    f = f or {}
+    return bool((_present(f.get("net_assets")) or _present(f.get("expense_ratio"))) and not _present(f.get("ca")))
+
+
+def concurrent_de(isin: str) -> dict | None:
+    if isin not in tmap.index or "concurrent_ticker" not in tmap.columns:
+        return None
+    r = tmap.loc[isin]
+    texte = lambda x: x.strip() if isinstance(x, str) and x.strip() else ""
+    ticker = texte(r.get("concurrent_ticker"))
+    if not ticker:
+        return None
+    return {"isin": texte(r.get("concurrent_isin")), "ticker": ticker,
+            "nom": texte(r.get("concurrent_nom")) or ticker}
+
+
+def resoudre_concurrent(isin: str, ticker: str | None = None) -> dict | None:
+    """Yahoo : ticker validé (ou trouvé à partir de l'ISIN) -> {ticker, nom}, sinon None."""
+    if ticker:
+        v = D.valider_ticker(ticker)
+        return {"ticker": ticker, "nom": v["nom"]} if v else None
+    t = D.chercher_ticker(isin) if isin else None
+    if not t or D.valider_ticker(t["ticker"], t["nom"]) is None:
+        return None
+    return {"ticker": t["ticker"], "nom": t["nom"]}
+
+
+def enregistrer_concurrent(isin: str, conc: dict | None) -> str | None:
+    """Écrit (ou efface si None) le concurrent du titre. Retourne un message d'erreur ou None."""
+    rec = {"concurrent_isin": (conc or {}).get("isin") or None,
+           "concurrent_ticker": (conc or {}).get("ticker"), "concurrent_nom": (conc or {}).get("nom")}
+    try:
+        db.modifier("tickers", isin, rec, cle="isin")
+    except Exception:
+        return ("Enregistrement impossible : exécutez d'abord la migration SQL du concurrent "
+                "(3 colonnes « concurrent_* » de la table tickers, voir schema.sql).")
+    return None
+
+
+def suggerer_a_la_creation(isin: str, ticker: str, nom: str) -> None:
+    """Une seule suggestion IA, à la création du titre. Ne bloque jamais l'enregistrement."""
+    cle_api = auth.secret("GEMINI_API_KEY")
+    if mode_demo or not cle_api:
+        return
+    try:
+        with st.spinner("Recherche d'un concurrent…"):
+            f = D.fondamentaux_batch((ticker,)).get(ticker, {})
+            if est_etf(nom, f):
+                return
+            conc = CONC.suggerer(nom, isin, f, cle_api, auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT,
+                                 resoudre_concurrent)
+        if conc and enregistrer_concurrent(isin, conc) is None:
+            st.session_state["flash_conc"] = (f"Concurrent suggéré : {conc['nom']} "
+                                              "(modifiable dans Détails › Fondamentaux)")
+    except Exception:
+        pass  # la suggestion est un confort : toute erreur est ignorée
+
+
+def _court(nom: str, n: int = 14) -> str:
+    nom = str(sans_parentheses(pd.Series([nom])).iloc[0])
+    return nom if len(nom) <= n else nom[:n - 1] + "…"
+
+
+def _cellule(v, unite: str) -> str:
+    if v is None:
+        return "—"
+    return f"{fmt(v, 1)}x" if unite == "x" else f"{fmt(v, 1)} %" if unite == "%" else C.formater_gros_nombre(v)
+
+
+def _ecart(e, mode: str) -> str:
+    if e is None:
+        return "—"
+    return f"{fmt(e, 0, True)} %" if mode == "pct" else f"{fmt(e, 1, True)} pt" if mode == "pts" else f"×{fmt(e, 1)}"
+
+
+def afficher_comparaison(nom: str, conc: dict, lignes: list) -> None:
+    if not lignes:
+        st.caption(f"Fondamentaux indisponibles pour comparer avec {conc['nom']}.")
+        return
+    tab = [f"| | {_court(nom)} | {_court(conc['nom'])} | Écart |", "|---|--:|--:|--:|"]
+    tab += [f"| {l['label']} | {_cellule(l['vt'], l['unite'])} | {_cellule(l['vc'], l['unite'])} | "
+            f"{_ecart(l['ecart'], l['type_ecart'])} |" for l in lignes]
+    st.markdown("\n".join(tab))
+    st.caption("Écart = titre par rapport au concurrent (multiples : écart relatif ; marges : points). "
+               "Données Yahoo, indicatives.")
+
+
+def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str) -> None:
+    """Sous les fondamentaux d'une action : comparaison avec son concurrent (à la demande) et édition."""
+    if est_etf(nom, f):
+        return
+    k = f"{ctx}_{isin}"
+    conc = concurrent_de(isin)
+    comparer = False
+    if conc:
+        c1, c2 = st.columns([4, 1])
+        comparer = c1.toggle(f"⚖️ Comparer à {conc['nom']}", key=f"cmp_{k}")
+        edition = c2.toggle("✏️", key=f"cedit_{k}", help="Modifier ou retirer le concurrent")
+    else:
+        edition = st.toggle("➕ Ajouter un concurrent", key=f"cedit_{k}")
+
+    if comparer:  # les fondamentaux du concurrent ne sont téléchargés que sur demande
+        fc = D.fondamentaux_batch((conc["ticker"],)).get(conc["ticker"], {})
+        afficher_comparaison(nom, conc, CONC.lignes_comparaison(f, fc))
+    if not edition:
+        return
+
+    sug = st.session_state.pop(f"csug_{k}", None)  # suggestion IA : à injecter AVANT de créer les champs
+    if sug:
+        st.session_state[f"cisin_{k}"], st.session_state[f"ctk_{k}"] = sug["isin"], sug["ticker"]
+        st.info(f"💡 Suggestion IA : **{sug['nom']}**" + (f" — {sug['raison']}" if sug["raison"] else "")
+                + ". À enregistrer pour la conserver.")
+    st.session_state.setdefault(f"cisin_{k}", (conc or {}).get("isin", ""))
+    st.session_state.setdefault(f"ctk_{k}", (conc or {}).get("ticker", ""))
+    isin_c = st.text_input("ISIN du concurrent", key=f"cisin_{k}", placeholder="DE0007236101")
+    tk_c = st.text_input("Ticker Yahoo (facultatif)", key=f"ctk_{k}", placeholder="ex : SIE.DE")
+    cle_api = auth.secret("GEMINI_API_KEY")
+    n_ia = sum(1 for d in st.session_state.get("conc_appels", []) if d == maintenant().date())
+    ia_ok = bool(cle_api) and not mode_demo and n_ia < CONC.MAX_SUGGESTIONS_PAR_JOUR
+    b1, b2, b3 = st.columns(3)
+    if b1.button("💾 Enregistrer", key=f"csave_{k}", type="primary"):
+        c, err = CONC.preparer_concurrent(isin_c, tk_c, isin, resoudre_concurrent)
+        err = err or enregistrer_concurrent(isin, c)
+        if err:
+            st.error(err)
+        else:
+            flash(f"Concurrent enregistré : {c['nom']} ✅")
+            st.rerun()
+    if b2.button("💡 IA", key=f"csugbtn_{k}", disabled=not ia_ok,
+                 help="Suggestion par l'IA" if ia_ok else "IA indisponible (compte démo, clé absente ou limite atteinte)"):
+        try:
+            with st.spinner("Recherche d'un concurrent…"):
+                prop = CONC.suggerer(nom, isin, f, cle_api, auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT,
+                                     resoudre_concurrent)
+        except llm.ErreurIA as e:
+            st.error(str(e))
+        else:
+            st.session_state["conc_appels"] = st.session_state.get("conc_appels", []) + [maintenant().date()]
+            if prop:
+                st.session_state[f"csug_{k}"] = prop
+                st.rerun()
+            st.warning("Aucun concurrent fiable trouvé : saisissez-le à la main.")
+    if conc and b3.button("🗑 Retirer", key=f"cdel_{k}"):
+        err = enregistrer_concurrent(isin, None)
+        if err:
+            st.error(err)
+        else:
+            for suffixe in ("cisin", "ctk", "cedit", "cmp"):
+                st.session_state.pop(f"{suffixe}_{k}", None)
+            flash("Concurrent retiré")
+            st.rerun()
+
+
+def carte_ligne(r, ctx: str, vue: str = "Fondamentaux", techs: dict | None = None) -> None:
+    """Carte d'une ligne détenue (réelle ou projetée) : synthèse, lien, détails (fondamentaux OU techniques)."""
     badge = "" if r.statut == "live" else f" ⚠️ {r.statut}"
     jour = pastille(r.var_jour_pct, f"{fmt(r.var_jour_pct, 2, True)} % auj.")
     total = pastille(r.perf_pct, f"{fmt(r.perf_pct, 1, True)} % total")
+    res_t = (techs or {}).get(r.ticker) if vue == "Techniques" else None
+    resume_t = TECH.resume(res_t)
     with st.container(border=True):
         g, d = st.columns([3, 2])
-        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %{lien_actualites(r.nom)}")
+        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %"
+                   + (f"  \nTechnique : {resume_t}" if resume_t else "") + lien_actualites(r.nom))
         d.markdown(f"<div style='text-align:right'><b>{fmt(r.valeur)} €</b><br>"
                    f"{jour}<br>{total}</div>", unsafe_allow_html=True)
         with st.expander("Détails"):
             f = fonds.get(r.ticker, {})
-            details = ([("Quantité", f"{r.quantite:g}"),
+            position = [("Quantité", f"{r.quantite:g}"),
                         ("PRM", f"{fmt(r.prm)} €"),
                         ("Cours", f"{fmt(r.prix_eff)} €"),
                         ("+/- value latente", f"{fmt(r.pv_latente, 2, True)} €"),
                         ("Dividendes perçus", f"{fmt(r.dividendes)} €")]
-                       + lignes_fondamentaux(f)
-                       + [("ISIN · ticker", f"{r.isin} · {r.ticker}")])
-            st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
+            ident = [("ISIN · ticker", f"{r.isin} · {r.ticker}")]
+            if vue == "Techniques":
+                st.markdown(_puces(position + ident))
+                afficher_technique(res_t)
+            else:
+                st.markdown(_puces(position + lignes_fondamentaux(f) + ident))
+                bloc_concurrent(r.isin, r.nom, f, ctx)
+
+
 # --------------------------------------------------------------------------- #
 # Analyse IA
 # --------------------------------------------------------------------------- #
@@ -597,6 +814,10 @@ def onglet_watchlist() -> None:
     if wl.empty:
         st.info("Votre watchlist est vide. Ajoutez des valeurs : elles seront proposées dans les "
                 "formulaires de saisie et dans les scénarios.")
+    vue = selecteur_vue("wl") if not wl.empty else "Fondamentaux"
+    techs = {}
+    if vue == "Techniques":
+        techs = calculer_techniques([tmap.loc[i, "ticker"] for i in wl["isin"] if i in tmap.index])
     for r in wl.itertuples():
         c = cours_all[cours_all["isin"] == r.isin]
         prix = prev = None
@@ -606,18 +827,26 @@ def onglet_watchlist() -> None:
         note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
         ticker = tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None
         f = fonds.get(ticker, {}) if ticker else {}
+        res_t = techs.get(ticker) if vue == "Techniques" else None
+        resume_t = TECH.resume(res_t)
 
         with st.container(border=True):
             g, d = st.columns([3, 2])
-            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}{lien_actualites(nom_de(tmap, r.isin))}")
+            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}"
+                       + (f"  \nTechnique : {resume_t}" if resume_t else "")
+                       + lien_actualites(nom_de(tmap, r.isin)))
             txt = f"<b>{fmt(prix)} €</b>" if prix and not pd.isna(prix) else "N/A"
             if var is not None:
                 txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} % auj.")
             d.markdown(f"<div style='text-align:right'>{txt}</div>", unsafe_allow_html=True)
             with st.expander("Détails"):
-                details = ([("Cours", f"{fmt(prix)} €")] + lignes_fondamentaux(f)
-                           + [("ISIN · ticker", f"{r.isin} · {ticker or '—'}")])
-                st.markdown("\n".join(f"- {k} : **{v}**" for k, v in details))
+                ident = [("ISIN · ticker", f"{r.isin} · {ticker or '—'}")]
+                if vue == "Techniques":
+                    st.markdown(_puces([("Cours", f"{fmt(prix)} €")] + ident))
+                    afficher_technique(res_t)
+                else:
+                    st.markdown(_puces([("Cours", f"{fmt(prix)} €")] + lignes_fondamentaux(f) + ident))
+                    bloc_concurrent(r.isin, nom_de(tmap, r.isin), f, "wl")
                 if connecte and st.button("🗑 Retirer de la watchlist", key=f"wl_del_{r.isin}"):
                     store.supprimer("watchlist", r.isin, cle="isin")
                     flash("Retiré de la watchlist")
@@ -811,8 +1040,10 @@ def onglet_projet() -> None:
                                             "ecart": "Écart"}).round(1)
         st.dataframe(tableau, hide_index=True)
     st.subheader("Lignes du scénario")
+    vue = selecteur_vue("pj")
+    techs = calculer_techniques(pos_p["ticker"]) if vue == "Techniques" and not pos_p.empty else {}
     for r in pos_p.sort_values("valeur", ascending=False).itertuples():
-        carte_ligne(r, "pj")
+        carte_ligne(r, "pj", vue, techs)
     ops = "; ".join(f"{r.type} {r.quantite:g} × {nom_de(tmap, r.isin)}" for r in sim.itertuples())
     bloc_ia_scenario(sid, pos_p, cash_p, ops, versement)
     bloc_chat(scenario=True, sid=sid, pos_p=pos_p, cash_p=cash_p, operations=ops, versement=versement)
@@ -990,7 +1221,7 @@ def import_captures() -> None:
                 st.error(f"Ticker introuvable pour {isin} : ajoutez-le via Saisie › Transaction, "
                          "puis relancez l'import.")
                 return
-            err = enregistrer_ticker(isin, trouve["ticker"], trouve.get("nom"))
+            err = enregistrer_ticker(isin, trouve["ticker"], trouve.get("nom"), suggerer=False)
             if err:
                 st.error(err)
                 return
@@ -1178,7 +1409,7 @@ def onglet_saisie() -> None:
                 echecs = []
                 for isin in manquants:
                     t = D.chercher_ticker(isin)
-                    if not t or enregistrer_ticker(isin, t["ticker"], t["nom"]):
+                    if not t or enregistrer_ticker(isin, t["ticker"], t["nom"], suggerer=False):
                         echecs.append(isin)
                 flash("Tickers résolus ✅" if not echecs else f"Échec pour : {', '.join(echecs)}")
                 st.rerun()
@@ -1187,7 +1418,7 @@ def onglet_saisie() -> None:
                 tk = st.text_input("Ticker Yahoo", placeholder="ex : MC.PA")
                 ok = st.form_submit_button("Enregistrer le ticker")
             if ok:
-                err = enregistrer_ticker(isin, tk.strip().upper()) if tk.strip() else "Ticker vide."
+                err = enregistrer_ticker(isin, tk.strip().upper(), suggerer=False) if tk.strip() else "Ticker vide."
                 if err:
                     st.error(err)
                 else:
@@ -1206,7 +1437,8 @@ def onglet_saisie() -> None:
 tab_pf, tab_hist, tab_proj, tab_wl, tab_saisie = st.tabs(
     ["📊 Portefeuille", "📈 Historique", "🔭 Projet", "👀 Watchlist", "➕ Saisie"])
 
-with tab_pf:
+@st.fragment
+def onglet_portefeuille() -> None:
     if erreur_journal:
         st.error(f"Journal incohérent : {erreur_journal} Corrigez-le dans Saisie › Corriger / supprimer.")
     if manquants:
@@ -1247,8 +1479,10 @@ with tab_pf:
                        + f" · actualisés à {horodatage:%H:%M}" + (" (cache 5 min)" if connecte else ""))
 
             # -- Une carte par ligne (lisible sur téléphone) ---------------- #
+            vue = selecteur_vue("pf")
+            techs = calculer_techniques(pos["ticker"]) if vue == "Techniques" else {}
             for r in pos.sort_values("valeur", ascending=False).itertuples():
-                carte_ligne(r, "pf")
+                carte_ligne(r, "pf", vue, techs)
 
             # -- KPIs étendus --------------------------------------------- #
             col1, col2, col3 = st.columns(3)
@@ -1368,6 +1602,9 @@ def onglet_historique() -> None:
             if bench is not None:
                 resume += f" · {choix} : **{fmt(bench.iloc[-1] - 100, 2, True)} %**"
             st.markdown(resume)
+
+with tab_pf:
+    onglet_portefeuille()
 
 with tab_hist:
     onglet_historique()

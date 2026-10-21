@@ -202,3 +202,8 @@ alter table scenario_trades add constraint scenario_trades_owner_fk foreign key 
   references scenarios(user_id, id) on delete cascade;
 alter table analyses_scen add constraint analyses_scen_owner_fk foreign key (user_id, scenario_id)
   references scenarios(user_id, id) on delete cascade;
+
+-- v9.2 : un concurrent coté par titre (comparaison des multiples). À exécuter une fois ; idempotent.
+alter table tickers add column if not exists concurrent_isin   text;
+alter table tickers add column if not exists concurrent_ticker text;
+alter table tickers add column if not exists concurrent_nom    text;
