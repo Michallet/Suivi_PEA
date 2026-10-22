@@ -12,6 +12,7 @@ SCHEMA = {
                 "concurrent_isin", "concurrent_ticker", "concurrent_nom"],
     "snapshots": ["date", "valeur", "apports"],
     "watchlist": ["isin", "note", "ajoute_le"],
+    "partage": ["partage", "pseudo"],
     "scenarios": ["id", "nom", "versement", "cree_le"],
     "scenario_trades": ["id", "scenario_id", "isin", "type", "quantite", "prix", "cree_le"],
     "analyses_ia": ["id", "cree_le", "modele", "empreinte", "resultat"],
@@ -26,6 +27,6 @@ ORDRE = {
     "secteurs": ["isin"], "tickers": ["isin"], "snapshots": ["date"],
     "watchlist": ["ajoute_le"], "scenarios": ["id"],
     "scenario_trades": ["id"], "analyses_ia": ["id"], "analyses_scen": ["scenario_id", "id"],
-    "chat_log": ["id"],
+    "chat_log": ["id"], "partage": ["pseudo"],
 }
 NUMERIQUES = ("quantite", "prix", "frais", "montant", "dernier_prix", "valeur", "apports", "versement")

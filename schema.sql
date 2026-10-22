@@ -59,6 +59,12 @@ create table if not exists snapshots (
   primary key (user_id, date)
 );
 
+create table if not exists partage ( -- partage (facultatif) de la courbe de performance avec les autres comptes
+  user_id text    not null primary key,
+  partage boolean not null default false, -- décoché par défaut : rien n'est partagé
+  pseudo  text
+);
+
 create table if not exists watchlist (
   user_id   text not null,
   isin      text not null,
@@ -127,6 +133,7 @@ alter table secteurs        enable row level security;
 alter table tickers         enable row level security;
 alter table snapshots       enable row level security;
 alter table watchlist       enable row level security;
+alter table partage         enable row level security;
 alter table scenarios       enable row level security;
 alter table scenario_trades enable row level security;
 alter table analyses_ia     enable row level security;

@@ -14,6 +14,8 @@ import pandas as pd
 import streamlit as st
 from supabase import create_client
 
+import calculs as C
+import auth
 from schema import NUMERIQUES, ORDRE, SCHEMA, TABLES_PAR_UTILISATEUR  # noqa: E402
 
 PAGE = 1000  # limite par requête côté Supabase
@@ -212,6 +214,71 @@ def appliquer_modifs(table: str, avant: pd.DataFrame, apres: pd.DataFrame) -> tu
                 modifier(table, i, rec)
                 modifies += 1
     return ajoutes, modifies, len(a_supprimer)
+
+
+# -- Partage de la performance entre comptes (SEULE exception au cloisonnement par user_id) -----------
+# Règles : jamais le compte demo (ni en lecture ni en écriture) ; seuls les comptes configurés qui ont
+# coché « partager » sont lus ; seul l'indice TWR base 100 sort de ce module (jamais valeur ni apports).
+PSEUDO_MAX = 30
+
+
+def enregistrer_partage(partage: bool, pseudo: str) -> None:
+    """Enregistre le choix de partage du compte courant (décoché par défaut)."""
+    if auth.est_demo():
+        raise PermissionError("Le compte demo ne partage pas sa performance.")
+    pseudo = " ".join(str(pseudo or "").split())[:PSEUDO_MAX]
+    upsert("partage", [{"partage": bool(partage), "pseudo": pseudo or None}], "user_id")
+
+
+def _comptes_eligibles(uid: str) -> list[str]:
+    cfg = auth._config_utilisateurs()
+    return [u for u, d in cfg.items() if u != uid and not d.get("demo", u == "demo")]
+
+
+@st.cache_data(ttl=120, show_spinner=False, max_entries=64)
+def _perfs_partagees(uid: str, eligibles: tuple) -> pd.DataFrame:
+    """Colonnes pseudo, date, twr (base 100 depuis le 1er point) des AUTRES comptes ayant autorisé le partage."""
+    vide = pd.DataFrame(columns=["pseudo", "date", "twr"])
+    if not eligibles:
+        return vide
+    opt = _client().table("partage").select("user_id,pseudo").eq("partage", True).in_("user_id", list(eligibles)) \
+        .order("user_id").execute().data
+    if not opt:
+        return vide
+    ids = [o["user_id"] for o in opt]
+    rows, debut = [], 0
+    while True:
+        lot = _client().table("snapshots").select("user_id,date,valeur,apports").in_("user_id", ids) \
+            .order("user_id").order("date").range(debut, debut + PAGE - 1).execute().data
+        rows += lot
+        if len(lot) < PAGE:
+            break
+        debut += PAGE
+    df = pd.DataFrame(rows, columns=["user_id", "date", "valeur", "apports"])
+    df["date"] = pd.to_datetime(df["date"])
+    for c in ("valeur", "apports"):
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    sorties, pris = [], {}
+    for o in opt:
+        g = df[df["user_id"] == o["user_id"]].dropna()
+        if len(g) < 2:
+            continue
+        nom = " ".join(str(o.get("pseudo") or "").split())[:PSEUDO_MAX] or "Anonyme"
+        pris[nom] = pris.get(nom, 0) + 1
+        if pris[nom] > 1:  # pseudos identiques : suffixe pour distinguer les courbes
+            nom = f"{nom} ({pris[nom]})"
+        t = C.calcul_twr(g[["date", "valeur", "apports"]])
+        t["pseudo"] = nom
+        sorties.append(t[["pseudo", "date", "twr"]])
+    return pd.concat(sorties, ignore_index=True) if sorties else vide
+
+
+def performances_partagees() -> pd.DataFrame:
+    """Performances (TWR base 100) des autres comptes qui ont autorisé le partage. Vide pour le compte demo."""
+    if auth.est_demo():
+        return pd.DataFrame(columns=["pseudo", "date", "twr"])
+    uid = _utilisateur_actif()
+    return _perfs_partagees(uid, tuple(sorted(_comptes_eligibles(uid))))
 
 
 def rafraichir() -> None:

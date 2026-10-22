@@ -1529,6 +1529,35 @@ def pf_graphiques() -> None:
                         f"- Dividendes nets perçus : **{fmt(div['montant'].sum())} €**")
 
 
+def bloc_partage() -> None:
+    """Case de partage de la performance (décochée par défaut) + pseudo. Seul l'indice base 100 est partagé."""
+    try:
+        cfg = db.lire("partage")
+    except Exception:
+        st.caption("Partage indisponible : exécutez d'abord la migration SQL (table « partage », voir schema.sql).")
+        return
+    actif = bool(cfg["partage"].iloc[0]) if not cfg.empty and pd.notna(cfg["partage"].iloc[0]) else False
+    pseudo = (cfg["pseudo"].iloc[0] if not cfg.empty else None) or ""
+    pseudo = "" if pd.isna(pseudo) else str(pseudo)
+
+    def sauver() -> None:
+        try:
+            db.enregistrer_partage(st.session_state.get("part_actif", False),
+                                   st.session_state.get("part_pseudo", pseudo))
+        except Exception as e:
+            flash(f"Enregistrement du partage impossible : {e}")
+
+    st.divider()
+    st.checkbox("Partager ma performance avec les autres utilisateurs", value=actif, key="part_actif",
+                on_change=sauver,
+                help="Seule votre courbe de performance (base 100, sans montant ni position) est visible, "
+                     "sous le pseudo ci-dessous. Décochez pour cesser immédiatement le partage.")
+    if st.session_state.get("part_actif", actif):
+        st.text_input("Pseudo affiché", value=pseudo, key="part_pseudo", max_chars=db.PSEUDO_MAX,
+                      placeholder="Anonyme", on_change=sauver,
+                      help="Laissez vide pour apparaître comme « Anonyme ».")
+
+
 @st.fragment
 def onglet_historique() -> None:
     if len(snaps) < 2:
@@ -1556,6 +1585,14 @@ def onglet_historique() -> None:
             st.subheader("Performance vs indice")
             st.caption("Performance pondérée par le temps : neutralise vos versements, base 100.")
             choix = st.selectbox("Comparer à", list(BENCHMARKS), label_visibility="collapsed")
+            try:  # table « partage » absente (migration non faite) ou base indisponible : pas d'amis
+                amis = db.performances_partagees()
+            except Exception:
+                amis = pd.DataFrame(columns=["pseudo", "date", "twr"])
+            noms = sorted(amis["pseudo"].unique())
+            choisis = st.multiselect("Comparer aux autres utilisateurs", noms, default=noms,
+                                     placeholder="Utilisateurs à afficher",
+                                     label_visibility="collapsed") if noms else []
             twr = C.calcul_twr(sn)
             bench = None
             try:  # le compte demo utilise aussi les cours et historiques Yahoo
@@ -1568,6 +1605,16 @@ def onglet_historique() -> None:
             fig.add_scatter(x=twr["date"], y=twr["twr"], name="Mon PEA", mode="lines")
             if bench is not None:
                 fig.add_scatter(x=twr["date"], y=bench.to_numpy(), name=choix, mode="lines")
+            perf_amis = {}
+            for p in choisis:
+                s = amis[amis["pseudo"] == p].set_index("date")["twr"]
+                s = s.reindex(s.index.union(twr["date"])).ffill().reindex(twr["date"])  # pas de bfill
+                if s.notna().sum() < 2:
+                    continue  # pas de données sur la période
+                s = s / s.dropna().iloc[0] * 100
+                perf_amis[p] = s.iloc[-1] - 100
+                fig.add_scatter(x=twr["date"], y=s.to_numpy(), name=p, mode="lines",
+                                line=dict(width=1.5), connectgaps=False)
             fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=300,
                               legend=dict(orientation="h", y=-0.15))
             fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
@@ -1577,6 +1624,13 @@ def onglet_historique() -> None:
             if bench is not None:
                 resume += f" · {choix} : **{fmt(bench.iloc[-1] - 100, 2, True)} %**"
             st.markdown(resume)
+            if perf_amis:
+                st.markdown(" · ".join(f"{p} : **{fmt(v, 2, True)} %**" for p, v in perf_amis.items()))
+                st.caption("Courbes des autres utilisateurs : base 100 au début de la période (ou à leur "
+                           "1er point s'il est plus récent).")
+
+    if not auth.est_demo():
+        bloc_partage()
 
 with tab_pf:
     pf_synthese()

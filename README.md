@@ -25,6 +25,7 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
   Les tests et exemples n'utilisent que des données fictives.
 - **Cloisonnement par compte** : toute lecture/écriture Supabase est filtrée par `user_id` dans `db.py`.
   Le compte `demo` ne lit jamais les données d'un autre compte et **n'appelle jamais l'IA** (garde côté UI *et* serveur).
+  **Seule exception** : `db.performances_partagees()` (voir « Partage de la performance »).
 - **Ne pas modifier les règles métier** ci-dessous sans demande explicite.
 - Les fichiers `.py` du dépôt vont **ensemble** : un déploiement partiel (ex. `app.py` sans `donnees.py`) plante.
 
@@ -53,7 +54,7 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 
 **Tables** : `transactions`, `dividendes`, `versements`, `secteurs`, `tickers` (ISIN → ticker, dernier prix, concurrent),
 `snapshots` (valeur et apports par jour), `watchlist`, `scenarios`, `scenario_trades`, `analyses_ia`, `analyses_scen`,
-`chat_log` (une ligne par message, pour le quota). Toutes portent un `user_id`.
+`chat_log` (une ligne par message, pour le quota), `partage` (choix de partage de la performance + pseudo). Toutes portent un `user_id`.
 
 ---
 
@@ -71,6 +72,15 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 - **Scénarios (onglet Projet)** : opérations fictives au dernier cours, rejouées sur le journal réel ; le réel n'est
   jamais modifié.
 - **Liens** : chaque carte porte un lien Google Actualités calculé à l'affichage (rien n'est stocké en base).
+
+### Partage de la performance (Historique)
+Case sous le 2ᵉ graphique, **décochée par défaut** (table `partage` : `partage`, `pseudo`, migration dans `schema.sql`).
+Le graphique « Performance vs indice » ajoute, en plus de l'indice, la courbe TWR des **autres comptes** ayant coché la case
+(sélecteur d'utilisateurs, tous affichés par défaut) — indépendamment du choix de l'utilisateur lui-même de partager.
+- Seule l'**indice TWR base 100** quitte `db.py` (`performances_partagees`) : jamais valeur, apports ni positions.
+- Exclus : compte `demo` (ne voit rien, ne partage rien), soi-même, comptes absents des secrets. Pseudo vide = « Anonyme » ;
+  pseudos identiques suffixés `(2)`… Cache 2 min. Décocher coupe le partage dès l'expiration du cache.
+- Courbes alignées sur la période choisie ; un ami dont l'historique commence plus tard démarre à 100 à son 1er point.
 
 ### Indicateurs techniques (`technique.py`)
 Sélecteur *Fondamentaux | Indicateurs techniques* dans Portefeuille, Projet et Watchlist ; les bougies (~1 an) ne
