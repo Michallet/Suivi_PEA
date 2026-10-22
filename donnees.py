@@ -10,6 +10,7 @@ from __future__ import annotations
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -106,7 +107,7 @@ def _par_titre(categorie: str, tickers: tuple, lire, ttl: int, ttl_echec: int, o
         a_lire = [t for t in dict.fromkeys(tickers)
                   if t not in m[categorie] or maintenant - m[categorie][t][0] > m[categorie][t][2]]
     if a_lire:
-        with st.spinner(spinner) if spinner else _sans_spinner():
+        with st.spinner(spinner) if spinner else nullcontext():
             with ThreadPoolExecutor(max_workers=5) as ex:
                 res = list(ex.map(lire, a_lire))
         with m["verrou"]:
@@ -116,14 +117,6 @@ def _par_titre(categorie: str, tickers: tuple, lire, ttl: int, ttl_echec: int, o
         valeurs = {t: m[categorie][t][1] for t in tickers if t in m[categorie]}
         horo = min((m[categorie][t][0] for t in tickers if t in m[categorie]), default=time.time())
     return valeurs, horo
-
-
-class _sans_spinner:
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *a):
-        return False
 
 
 def cours_batch(tickers: tuple) -> tuple[dict, datetime]:
@@ -143,37 +136,29 @@ cours_batch.clear = lambda: _vider("cours")  # type: ignore[attr-defined]  (bout
 
 
 def _lire_info(ticker: str) -> dict:
+    """Fondamentaux Yahoo d'un titre (actions et ETF) ; {} en cas d'échec."""
     try:
         info = yf.Ticker(ticker).info or {}
     except Exception:
         return {}
 
-    # KPIs pour ETF
-    net_assets = info.get("totalAssets") or info.get("netAssets")
-    expense_ratio = info.get("netExpenseRatio") or info.get("expenseRatio")
-    
-    # KPIs pour actions individuelles
-    net_income = info.get("netIncome") or info.get("netIncomeToCommon")
-    ebitda = info.get("ebitda") or info.get("EBITDA")
-    
+    ebitda = info.get("ebitda")
     # EV/EBITDA : uniquement avec la vraie valeur d'entreprise (marketCap/EBITDA serait un autre ratio)
-    ev_ebitda = None
-    enterprise_value = _positif(info.get("enterpriseValue"))
-    if enterprise_value and ebitda and ebitda > 0:
-        ev_ebitda = enterprise_value / ebitda
+    ev = _positif(info.get("enterpriseValue"))
+    ev_ebitda = ev / ebitda if ev and ebitda and ebitda > 0 else None
 
     return {
         "per": _positif(info.get("trailingPE")),
         "per_prev": _positif(info.get("forwardPE")),
-        "ev": enterprise_value,
+        "ev": ev,
         "ca": info.get("totalRevenue"),
         "capi": info.get("marketCap"),
         "secteur_yahoo": info.get("sector"),  # en anglais : surchargeable dans « Secteurs »
         "industrie": info.get("industry"),
         "devise": info.get("currency"),  # devise de cotation (capitalisation)
-        "net_assets": net_assets,
-        "expense_ratio": expense_ratio,
-        "net_income": net_income,
+        "net_assets": info.get("totalAssets") or info.get("netAssets"),            # ETF
+        "expense_ratio": info.get("netExpenseRatio") or info.get("expenseRatio"),  # ETF
+        "net_income": info.get("netIncome") or info.get("netIncomeToCommon"),
         "ebitda": ebitda,
         "ev_ebitda": ev_ebitda,
     }

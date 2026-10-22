@@ -9,19 +9,19 @@ BEGIN
     RETURN;
   END IF;
 
-  INSERT INTO tickers (user_id, isin, ticker, nom, dernier_prix, dernier_prix_at, url) VALUES
-    ('demo','FR001400U5Q4','DCAM.PA','Amundi PEA Monde (MSCI World)',6.31,now(),NULL),
-    ('demo','FR0000121014','MC.PA','LVMH',612.40,now(),NULL),
-    ('demo','FR0000120271','TTE.PA','TotalEnergies',57.90,now(),NULL),
-    ('demo','FR0000120073','AI.PA','Air Liquide',172.50,now(),NULL),
-    ('demo','FR0000121972','SU.PA','Schneider Electric',238.00,now(),NULL),
-    ('demo','FR0000120578','SAN.PA','Sanofi',86.40,now(),NULL),
-    ('demo','NL0010273215','ASML.AS','ASML',702.00,now(),NULL),
-    ('demo','NL0000235190','AIR.PA','Airbus',168.00,now(),NULL),
-    ('demo','FR0013412012','PAASI.PA','Amundi PEA Asie Émergente (MSCI EM Asia)',37.66,now(),NULL),
-    ('demo','FR0000052292','RMS.PA','Hermès',2380.00,now(),NULL),
-    ('demo','FR0000120321','OR.PA','L''Oréal',372.00,now(),NULL),
-    ('demo','FR0000131104','BNP.PA','BNP Paribas',74.80,now(),NULL)
+  INSERT INTO tickers (user_id, isin, ticker, nom, dernier_prix, dernier_prix_at) VALUES
+    ('demo','FR001400U5Q4','DCAM.PA','Amundi PEA Monde (MSCI World)',6.31,now()),
+    ('demo','FR0000121014','MC.PA','LVMH',612.40,now()),
+    ('demo','FR0000120271','TTE.PA','TotalEnergies',57.90,now()),
+    ('demo','FR0000120073','AI.PA','Air Liquide',172.50,now()),
+    ('demo','FR0000121972','SU.PA','Schneider Electric',238.00,now()),
+    ('demo','FR0000120578','SAN.PA','Sanofi',86.40,now()),
+    ('demo','NL0010273215','ASML.AS','ASML',702.00,now()),
+    ('demo','NL0000235190','AIR.PA','Airbus',168.00,now()),
+    ('demo','FR0013412012','PAASI.PA','Amundi PEA Asie Émergente (MSCI EM Asia)',37.66,now()),
+    ('demo','FR0000052292','RMS.PA','Hermès',2380.00,now()),
+    ('demo','FR0000120321','OR.PA','L''Oréal',372.00,now()),
+    ('demo','FR0000131104','BNP.PA','BNP Paribas',74.80,now())
   ON CONFLICT (user_id, isin) DO UPDATE SET
     ticker=EXCLUDED.ticker, nom=EXCLUDED.nom, dernier_prix=EXCLUDED.dernier_prix,
     dernier_prix_at=EXCLUDED.dernier_prix_at;
@@ -59,10 +59,10 @@ BEGIN
     ('demo', current_date - 125,'VERSEMENT',2000.00,NULL),
     ('demo', current_date - 300,'PV_ANTERIEURE',250.00,'Gains antérieurs');
 
-  INSERT INTO watchlist (user_id, isin, note, url, ajoute_le) VALUES
-    ('demo','FR0000052292','Luxe : attendre un meilleur point d''entrée ?',NULL,now()),
-    ('demo','FR0000120321','Défensif, dividende régulier',NULL,now()),
-    ('demo','FR0000131104','Banque, valorisation basse',NULL,now())
+  INSERT INTO watchlist (user_id, isin, note, ajoute_le) VALUES
+    ('demo','FR0000052292','Luxe : attendre un meilleur point d''entrée ?',now()),
+    ('demo','FR0000120321','Défensif, dividende régulier',now()),
+    ('demo','FR0000131104','Banque, valorisation basse',now())
   ON CONFLICT (user_id, isin) DO NOTHING;
 
   INSERT INTO scenarios (user_id, nom, versement)

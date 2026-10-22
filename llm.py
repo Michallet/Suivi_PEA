@@ -20,7 +20,7 @@ import requests
 MODELE_DEFAUT = "gemini-3.6-flash"  # surchargeable via le secret GEMINI_MODEL (ex : gemini-3.8-flash)
 URL = "https://generativelanguage.googleapis.com/v1beta/models/{modele}:generateContent"
 VERSION_PROMPT = "v1"
-# Quotas côté app (2 comptes, palier gratuit Gemini). Les vraies limites sont celles de Google : projet + modèle.
+# Quotas côté app (palier gratuit Gemini). Les vraies limites sont celles de Google : projet + modèle.
 MAX_APPELS_PAR_JOUR = 30        # analyses de portefeuille / de scénario, par jour et par compte
 MAX_CHAT_PAR_JOUR = 100         # questions au chatbot, par jour et par compte
 MAX_SUGGESTIONS_PAR_JOUR = 30   # suggestions de concurrent « à la demande » (compté dans la session)
@@ -324,20 +324,20 @@ def _en_majuscules(schema):
     return schema
 
 
-def _payload(texte: str, variante: str, schema: dict) -> dict:
+def _payload_json(systeme: str, parts: list, schema: dict, variante: str, max_tokens: int) -> dict:
+    """Requête Gemini à réponse JSON structurée (`variante` : json_schema | response_schema)."""
     config = {
         "responseMimeType": "application/json",
         # Pas de temperature/top_p/top_k : ignorés (puis refusés) par les modèles Gemini 3.x
         "thinkingConfig": {"thinkingLevel": "low"},
-        "maxOutputTokens": 4096,  # la réflexion est comptée dans la sortie
+        "maxOutputTokens": max_tokens,  # la réflexion est comptée dans la sortie
     }
     if variante == "json_schema":
         config["responseJsonSchema"] = schema
     else:
         config["responseSchema"] = _en_majuscules(schema)
-    systeme = SYSTEME_SCENARIO if schema is SCHEMA_JSON_SCENARIO else SYSTEME
     return {"systemInstruction": {"parts": [{"text": systeme}]},
-            "contents": [{"role": "user", "parts": [{"text": texte}]}],
+            "contents": [{"role": "user", "parts": parts}],
             "generationConfig": config}
 
 
@@ -358,11 +358,8 @@ def _message_erreur(r) -> str:
         return ""
 
 
-def _generer(texte: str, cle: str, modele: str, timeout: int,
-             schema: dict = SCHEMA_JSON) -> str:
-    r = _post(_payload(texte, "json_schema", schema), cle, modele, timeout)
-    if r.status_code == 400 and "schema" in _message_erreur(r).lower():
-        r = _post(_payload(texte, "response_schema", schema), cle, modele, timeout)  # variante OpenAPI
+def _texte_reponse(r, modele: str) -> str:
+    """Statut HTTP -> ErreurIA lisible ; sinon texte de la réponse (hors « pensées »)."""
     if r.status_code in (401, 403):
         raise ErreurIA("Clé API Gemini refusée (vérifiez GEMINI_API_KEY).")
     if r.status_code == 404:
@@ -380,6 +377,34 @@ def _generer(texte: str, cle: str, modele: str, timeout: int,
     return "".join(p.get("text", "") for p in parts if not p.get("thought"))
 
 
+def appeler_json(systeme: str, parts: list, schema: dict, cle: str, modele: str, timeout: int,
+                 max_tokens: int = 4096):
+    """Un appel Gemini à sortie structurée -> objet JSON déjà décodé. Lève ErreurIA.
+
+    Réutilisé par l'analyse, l'import par captures et la suggestion de concurrent.
+    """
+    def envoyer(variante: str):
+        return _post(_payload_json(systeme, parts, schema, variante, max_tokens), cle, modele, timeout)
+
+    r = envoyer("json_schema")
+    if r.status_code == 400 and "schema" in _message_erreur(r).lower():
+        r = envoyer("response_schema")  # variante OpenAPI
+    return _parser_json(_texte_reponse(r, modele))
+
+
+def avec_reessai(fonction):
+    """Exécute `fonction()` ; un seul nouvel essai si la réponse est invalide. Lève ErreurIA."""
+    derniere = None
+    for _ in range(2):
+        try:
+            return fonction()
+        except ErreurIA as e:
+            derniere = e
+            if any(m in str(e) for m in ("refusée", "introuvable", "Quota", "Clé", "Maximum")):
+                break  # inutile de réessayer
+    raise derniere
+
+
 def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90,
              scenario: bool = False) -> dict:
     """Un appel (un seul nouvel essai si la réponse est invalide). Lève ErreurIA.
@@ -387,19 +412,15 @@ def analyser(texte: str, cle: str, modele: str | None = None, timeout: int = 90,
     Avec `scenario=True` : schéma étendu (avantages/inconvénients) et prompt comparatif.
     """
     modele = modele or MODELE_DEFAUT
-    schema = SCHEMA_JSON_SCENARIO if scenario else SCHEMA_JSON
-    derniere = None
-    for _ in range(2):
-        try:
-            res = valider_resultat(_parser_json(_generer(texte, cle, modele, timeout, schema)),
-                                   comparer=scenario)
-            res["modele"] = modele
-            return res
-        except ErreurIA as e:
-            derniere = e
-            if "refusée" in str(e) or "introuvable" in str(e) or "Quota" in str(e) or "Clé" in str(e):
-                break  # inutile de réessayer
-    raise derniere
+    schema, systeme = (SCHEMA_JSON_SCENARIO, SYSTEME_SCENARIO) if scenario else (SCHEMA_JSON, SYSTEME)
+
+    def une_analyse() -> dict:
+        res = valider_resultat(
+            appeler_json(systeme, [{"text": texte}], schema, cle, modele, timeout), comparer=scenario)
+        res["modele"] = modele
+        return res
+
+    return avec_reessai(une_analyse)
 
 
 # --------------------------------------------------------------------------- #
@@ -456,41 +477,6 @@ SCHEMA_JSON_CAPTURE = {
 }
 
 
-def _texte_reponse(r, modele: str) -> str:
-    """Statut HTTP -> ErreurIA lisible ; sinon texte de la réponse (hors « pensées »)."""
-    if r.status_code in (401, 403):
-        raise ErreurIA("Clé API Gemini refusée (vérifiez GEMINI_API_KEY).")
-    if r.status_code == 404:
-        raise ErreurIA(f"Modèle « {modele} » introuvable (vérifiez GEMINI_MODEL).")
-    if r.status_code == 429:
-        raise ErreurIA("Quota Gemini atteint. Réessayez plus tard.")
-    if r.status_code >= 500:
-        raise ErreurIA("Service Gemini momentanément indisponible. Réessayez.")
-    if r.status_code != 200:
-        raise ErreurIA(f"Requête refusée par Gemini ({r.status_code}) : {_message_erreur(r)}")
-    try:
-        parts = r.json()["candidates"][0]["content"]["parts"]
-    except (KeyError, IndexError, TypeError, ValueError):
-        raise ErreurIA("Gemini n'a renvoyé aucune réponse exploitable (contenu bloqué ou vide).")
-    return "".join(p.get("text", "") for p in parts if not p.get("thought"))
-
-
-def _payload_capture(images: list, variante: str) -> dict:
-    parts = [{"text": f"{len(images)} capture(s) d'écran du portefeuille. Extrais les lignes."}]
-    parts += [{"inlineData": {"mimeType": mime, "data": base64.b64encode(data).decode("ascii")}}
-              for data, mime in images]
-    config = {"responseMimeType": "application/json",
-              "thinkingConfig": {"thinkingLevel": "low"},
-              "maxOutputTokens": 8192}
-    if variante == "json_schema":
-        config["responseJsonSchema"] = SCHEMA_JSON_CAPTURE
-    else:
-        config["responseSchema"] = _en_majuscules(SCHEMA_JSON_CAPTURE)
-    return {"systemInstruction": {"parts": [{"text": SYSTEME_CAPTURE}]},
-            "contents": [{"role": "user", "parts": parts}],
-            "generationConfig": config}
-
-
 def extraire_capture(images: list, cle: str, modele: str | None = None, timeout: int = 120) -> dict:
     """Envoie les captures à Gemini et retourne le JSON brut {"lignes": [...]} (à nettoyer avec
     `import_ecran.normaliser_releve`). `images` : liste de (octets, type MIME). Lève ErreurIA.
@@ -504,21 +490,17 @@ def extraire_capture(images: list, cle: str, modele: str | None = None, timeout:
         raise ErreurIA("Format d'image non pris en charge (PNG, JPEG ou WebP).")
     if sum(len(d) for d, _ in images) > MAX_OCTETS_CAPTURES:
         raise ErreurIA("Images trop volumineuses (15 Mo maximum au total).")
-    derniere = None
-    for _ in range(2):
-        try:
-            r = _post(_payload_capture(images, "json_schema"), cle, modele, timeout)
-            if r.status_code == 400 and "schema" in _message_erreur(r).lower():
-                r = _post(_payload_capture(images, "response_schema"), cle, modele, timeout)
-            obj = _parser_json(_texte_reponse(r, modele))
-            if not isinstance(obj, dict) or not isinstance(obj.get("lignes"), list):
-                raise ErreurIA("Réponse de l'IA inattendue (structure).")
-            return obj
-        except ErreurIA as e:
-            derniere = e
-            if any(m in str(e) for m in ("refusée", "introuvable", "Quota", "Clé", "Maximum")):
-                break  # inutile de réessayer
-    raise derniere
+    parts = [{"text": f"{len(images)} capture(s) d'écran du portefeuille. Extrais les lignes."}]
+    parts += [{"inlineData": {"mimeType": mime, "data": base64.b64encode(data).decode("ascii")}}
+              for data, mime in images]
+
+    def une_lecture() -> dict:
+        obj = appeler_json(SYSTEME_CAPTURE, parts, SCHEMA_JSON_CAPTURE, cle, modele, timeout, max_tokens=8192)
+        if not isinstance(obj, dict) or not isinstance(obj.get("lignes"), list):
+            raise ErreurIA("Réponse de l'IA inattendue (structure).")
+        return obj
+
+    return avec_reessai(une_lecture)
 
 
 # --------------------------------------------------------------------------- #
@@ -559,28 +541,7 @@ def discuter(contexte: str, historique: list, question: str, cle: str,
                "contents": contenus,
                "generationConfig": {"maxOutputTokens": MAX_TOKENS_CHAT,
                                     "thinkingConfig": {"thinkingLevel": "low"}}}
-    try:
-        r = requests.post(URL.format(modele=modele), json=payload, timeout=timeout,
-                          headers={"x-goog-api-key": cle, "Content-Type": "application/json"})
-    except requests.Timeout:
-        raise ErreurIA("Délai dépassé : Gemini n'a pas répondu à temps. Réessayez.")
-    except requests.RequestException:
-        raise ErreurIA("Connexion à Gemini impossible. Réessayez plus tard.")
-    if r.status_code in (401, 403):
-        raise ErreurIA("Clé API Gemini refusée (vérifiez GEMINI_API_KEY).")
-    if r.status_code == 404:
-        raise ErreurIA(f"Modèle « {modele} » introuvable (vérifiez GEMINI_MODEL).")
-    if r.status_code == 429:
-        raise ErreurIA("Quota Gemini atteint. Réessayez plus tard.")
-    if r.status_code >= 500:
-        raise ErreurIA("Service Gemini momentanément indisponible. Réessayez.")
-    if r.status_code != 200:
-        raise ErreurIA(f"Requête refusée par Gemini ({r.status_code}) : {_message_erreur(r)}")
-    try:
-        parts = r.json()["candidates"][0]["content"]["parts"]
-    except (KeyError, IndexError, TypeError, ValueError):
-        raise ErreurIA("Gemini n'a renvoyé aucune réponse exploitable (contenu bloqué ou vide).")
-    texte = "".join(x.get("text", "") for x in parts if not x.get("thought")).strip()
+    texte = _texte_reponse(_post(payload, cle, modele, timeout), modele).strip()
     if not texte:
         raise ErreurIA("Gemini n'a renvoyé aucune réponse exploitable (contenu bloqué ou vide).")
     return _tronquer_mots(texte, MAX_MOTS_REPONSE)

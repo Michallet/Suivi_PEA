@@ -16,7 +16,7 @@ import import_ecran as IE
 import llm
 
 MAX_CANDIDATS = 3
-MAX_SUGGESTIONS_PAR_JOUR = getattr(llm, "MAX_SUGGESTIONS_PAR_JOUR", 30)  # à la demande, par session (voir app.py)
+MAX_SUGGESTIONS_PAR_JOUR = llm.MAX_SUGGESTIONS_PAR_JOUR  # à la demande, par session (voir app.py)
 
 SYSTEME_DEFAUT = (
     "Tu aides un investisseur à repérer UN concurrent coté d'une entreprise cotée, pour comparer leurs "
@@ -86,33 +86,11 @@ def normaliser_candidats(obj) -> list[dict]:
     return sortie[:MAX_CANDIDATS]
 
 
-def _payload(texte: str, variante: str) -> dict:
-    config = {"responseMimeType": "application/json", "thinkingConfig": {"thinkingLevel": "low"},
-              "maxOutputTokens": 2048}
-    if variante == "json_schema":
-        config["responseJsonSchema"] = SCHEMA_JSON
-    else:
-        config["responseSchema"] = llm._en_majuscules(SCHEMA_JSON)
-    return {"systemInstruction": {"parts": [{"text": SYSTEME}]},
-            "contents": [{"role": "user", "parts": [{"text": texte}]}],
-            "generationConfig": config}
-
-
 def demander_candidats(texte: str, cle: str, modele: str | None = None, timeout: int = 60) -> list[dict]:
     """Un appel Gemini (un nouvel essai si la réponse est illisible). Lève llm.ErreurIA."""
     modele = modele or llm.MODELE_DEFAUT
-    derniere = None
-    for _ in range(2):
-        try:
-            r = llm._post(_payload(texte, "json_schema"), cle, modele, timeout)
-            if r.status_code == 400 and "schema" in llm._message_erreur(r).lower():
-                r = llm._post(_payload(texte, "response_schema"), cle, modele, timeout)
-            return normaliser_candidats(llm._parser_json(llm._texte_reponse(r, modele)))
-        except llm.ErreurIA as e:
-            derniere = e
-            if any(m in str(e) for m in ("refusée", "introuvable", "Quota", "Clé")):
-                break
-    raise derniere
+    return llm.avec_reessai(lambda: normaliser_candidats(
+        llm.appeler_json(SYSTEME, [{"text": texte}], SCHEMA_JSON, cle, modele, timeout, max_tokens=2048)))
 
 
 def choisir_concurrent(candidats: list[dict], isin_titre: str, resoudre) -> dict | None:

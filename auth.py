@@ -95,12 +95,15 @@ def secret(nom: str):
         return None
 
 
+# Préfixes des clés de session propres à un compte (relevé d'import, chat, sélections, brouillons…).
+PREFIXES_ETAT_COMPTE = ("chat_", "wl_", "scenario_", "ed_", "imp", "vue_", "cmp_", "cedit_", "csug_",
+                        "cisin_", "ctk_", "conc_", "flash")
+
+
 def _vider_etat_compte(inclure_formulaire: bool = True) -> None:
     """Retire les données et sélections UI pouvant provenir du compte précédent."""
-    prefixes = ("chat_", "url_", "wl_", "scenario_", "ed_")
-    exactes = {"flash", "scenario_id", "scenario_pending", "ed_version"}
     for cle in list(st.session_state.keys()):
-        if str(cle).startswith(prefixes) or cle in exactes:
+        if str(cle).startswith(PREFIXES_ETAT_COMPTE):
             st.session_state.pop(cle, None)
         elif inclure_formulaire and cle in {"login_user", "login_password"}:
             st.session_state.pop(cle, None)

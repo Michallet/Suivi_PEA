@@ -6,17 +6,14 @@ Manage app → Reboot) pour prendre les changements en compte.
 
 ## Comment ça marche
 
-- Le code lit les sections `## analyse`, `## scenario` et `## chat` ci-dessous.
-- Une **section absente** (ou fichier renommé/supprimé) = le prompt par défaut codé dans
-  `llm.py` reprend la main. Tu peux donc commenter une section entière avec `<!-- -->`…
-  non : supprime-la, c'est un fichier Markdown lu tel quel.
-- Section facultative `## capture` : lecture des captures d'écran du courtier (Saisie › Import par
-  captures). Absente = prompt par défaut de `llm.py` (`SYSTEME_CAPTURE_DEFAUT`) ; à copier ici
-  pour l'adapter à un autre courtier. Elle doit rester une extraction pure (JSON, jamais d'analyse).
+- Le code lit les sections `## analyse`, `## scenario`, `## chat`, et facultativement `## capture` et
+  `## concurrent` (voir `llm.py` et `concurrents.py`).
+- Une **section absente** (ou fichier supprimé) = le prompt par défaut codé dans le module concerné
+  reprend la main. Pour revenir au défaut, supprime la section.
 - Chaque section est envoyée **telle quelle** comme instruction système à Gemini.
-- Contraintes techniques à respecter dans tes textes : l'analyse et le scénario doivent
-  demander une réponse **JSON** (le code la valide), avec les 4 critères listés et les
-  limites de longueur indiquées. Le chat doit rester une conversation libre (pas de JSON).
+- Contraintes techniques à respecter : l'analyse et le scénario doivent demander une réponse **JSON**
+  (le code la valide) avec les 4 critères listés et les limites de longueur indiquées ; le chat reste une
+  conversation libre (pas de JSON) ; `## capture` et `## concurrent` restent de l'extraction pure en JSON.
 
 ## Règles de ton (décidées avec l'utilisateur)
 
