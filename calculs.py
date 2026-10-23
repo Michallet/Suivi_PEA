@@ -285,3 +285,27 @@ def comparer_repartitions(reel: pd.DataFrame, proj: pd.DataFrame, cle: str = "la
     df["ecart"] = df["projete"] - df["reel"]
     df = df.loc[df[["reel", "projete"]].max(axis=1).sort_values(ascending=False).index]
     return df.rename_axis(cle).reset_index()
+
+
+def note_relative(valeurs: pd.Series, bas_est_bon: bool) -> pd.Series:
+    """Note de 1 à 10 par rang, relative aux valeurs fournies (10 = la meilleure).
+
+    * `bas_est_bon` : True pour une valorisation (PER bas = 10), False sinon (bénéfice haut = 10).
+    * Valeur absente ou non finie = note 1 (jamais d'exclusion). Si des lignes sont sans valeur,
+      les valeurs renseignées sont réparties sur 2 → 10 (1 est réservé à « sans valeur »), sinon sur 1 → 10.
+    * Égalités : rang moyen. Une seule valeur renseignée : 10 (s'il y a des lignes sans valeur) ou 5,5.
+    """
+    v = pd.to_numeric(valeurs, errors="coerce").astype(float)
+    v = v.where(np.isfinite(v))
+    ok = v.notna()
+    notes = pd.Series(1.0, index=v.index)
+    k, n = int(ok.sum()), len(v)
+    if k == 0:
+        return notes
+    if k == 1:
+        notes[ok] = 10.0 if k < n else 5.5
+        return notes
+    bas = 2.0 if k < n else 1.0
+    rang = v[ok].rank(ascending=not bas_est_bon, method="average")  # rang 1 = la pire valeur
+    notes[ok] = bas + (rang - 1) / (k - 1) * (10.0 - bas)
+    return notes

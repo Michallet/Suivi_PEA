@@ -1550,6 +1550,150 @@ def pf_lignes() -> None:
             carte_ligne(r, "pf", vue, techs)
 
 
+# -- Matrice de notes : deux grandeurs notées de 1 à 10 (relatives au portefeuille), croisées --------
+# clé -> (libellé, « bas = bon » ?, unité pour l'affichage, ce que signifie une note haute)
+GRANDEURS = {
+    "per": ("PER", True, "x", "PER bas"),
+    "per_prev": ("PER prévisionnel", True, "x", "PER prévisionnel bas"),
+    "ev_ebitda": ("EV/EBITDA", True, "x", "EV/EBITDA bas"),
+    "p_ca": ("Capitalisation / CA", True, "x", "valorisation basse"),
+    "marge": ("Marge nette", False, "%", "forte marge"),
+    "net_income": ("Bénéfice net", False, "", "gros bénéfice"),
+    "ebitda": ("EBITDA", False, "", "gros EBITDA"),
+    "ca": ("Chiffre d'affaires", False, "", "gros chiffre d'affaires"),
+    "capi": ("Capitalisation", False, "", "grosse capitalisation"),
+}
+RATIOS_POSITIFS = {"per", "per_prev", "ev_ebitda", "p_ca"}  # ≤ 0 = société déficitaire = sans valeur
+
+
+def valeur_grandeur(f: dict | None, cle: str):
+    """Valeur brute d'une grandeur pour une ligne (None si absente ou inexploitable)."""
+    f = f or {}
+
+    def num(k):
+        x = f.get(k)
+        return None if x is None or pd.isna(x) else float(x)
+
+    if cle == "marge":
+        ni, ca = num("net_income"), num("ca")
+        v = ni / ca * 100 if ni is not None and ca else None
+    elif cle == "p_ca":
+        capi, ca = num("capi"), num("ca")
+        v = capi / ca if capi is not None and ca and ca > 0 else None
+    else:
+        v = num(cle)
+    return None if v is not None and cle in RATIOS_POSITIFS and v <= 0 else v
+
+
+def matrice_notes() -> None:
+    """Nuage de points : deux grandeurs au choix, chacune notée de 1 à 10 par rang dans le portefeuille
+    (10 = le meilleur, 1 = sans valeur, ex. PER d'une société déficitaire). Jamais de ligne écartée."""
+    st.subheader("Matrice de notes")
+    cles = list(GRANDEURS)
+    c_x, c_y, c_wl = st.columns(3, vertical_alignment="bottom")
+    cx = c_x.selectbox("Axe horizontal", cles, index=cles.index("net_income"), key="qd_x",
+                       format_func=lambda k: GRANDEURS[k][0])
+    cy = c_y.selectbox("Axe vertical", cles, index=cles.index("per"), key="qd_y",
+                       format_func=lambda k: GRANDEURS[k][0])
+    avec_wl = c_wl.checkbox("Inclure la watchlist", key="qd_wl")
+
+    lignes = [{"isin": r.isin, "nom": r.nom, "ticker": r.ticker, "poids": r.poids_pct,
+               "perf": r.perf_pct, "wl": False} for r in pos.itertuples()]
+    if avec_wl:
+        detenus = set(pos["isin"])
+        for isin in wl["isin"]:
+            if isin not in detenus:
+                tk = tmap.loc[isin, "ticker"] if isin in tmap.index else None
+                lignes.append({"isin": isin, "nom": nom_de(tmap, isin), "ticker": tk,
+                               "poids": None, "perf": None, "wl": True})
+    for l in lignes:
+        l["etf"] = est_etf(l["nom"], fonds.get(l["ticker"], {}))
+    etfs = [l["nom"] for l in lignes if l["etf"]]
+    lignes = [l for l in lignes if not l["etf"]]
+    if len(lignes) < 3:
+        st.info("Au moins 3 actions (hors ETF) sont nécessaires pour comparer des notes.")
+        return
+
+    df = pd.DataFrame(lignes)
+    df["vx"] = [valeur_grandeur(fonds.get(tk, {}), cx) for tk in df["ticker"]]
+    df["vy"] = [valeur_grandeur(fonds.get(tk, {}), cy) for tk in df["ticker"]]
+    df["nx"] = C.note_relative(df["vx"], GRANDEURS[cx][1])
+    df["ny"] = C.note_relative(df["vy"], GRANDEURS[cy][1])
+    df["px"], df["py"] = df["nx"], df["ny"]
+    for _, g in df.groupby([df["nx"].round(2), df["ny"].round(2)]):  # points identiques : léger décalage
+        if len(g) > 1:
+            df.loc[g.index, "px"] = [df.at[i, "nx"] + (j - (len(g) - 1) / 2) * 0.28 for j, i in enumerate(g.index)]
+
+    def ligne_info(l, cle, v, n):
+        v = None if v is None or pd.isna(v) else v
+        return f"{GRANDEURS[cle][0]} : {_cellule(v, GRANDEURS[cle][2])} → note {n:.1f}/10"
+
+    def trace(d, **marqueur):
+        info = [[l.nom, ligne_info(l, cx, l.vx, l.nx), ligne_info(l, cy, l.vy, l.ny),
+                 "Watchlist" if l.wl else f"Poids : {fmt(l.poids, 0)} %"] for l in d.itertuples()]
+        return go.Scatter(x=d["px"], y=d["py"], mode="markers+text" if len(df) <= 12 else "markers",
+                          text=[_court(n, 12) for n in d["nom"]], textposition="top center",
+                          textfont=dict(size=11), customdata=info, showlegend=False,
+                          hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
+                                        "%{customdata[2]}<br>%{customdata[3]}<extra></extra>",
+                          marker=marqueur)
+
+    fig = go.Figure()
+    detenus_df, suivis_df = df[~df["wl"]], df[df["wl"]]
+    if not detenus_df.empty:
+        lim = max(5.0, float(detenus_df["perf"].abs().max()))
+        fig.add_trace(trace(detenus_df, size=[min(46, 14 + 4.5 * max(p, 0) ** 0.5) for p in detenus_df["poids"]],
+                            color=detenus_df["perf"], colorscale="RdYlGn", cmin=-lim, cmax=lim,
+                            showscale=False, opacity=0.92, line=dict(color="rgba(255,255,255,0.85)", width=1.5)))
+    if not suivis_df.empty:
+        fig.add_trace(trace(suivis_df, size=15, symbol="diamond", color=style.ARDOISE, opacity=0.9,
+                            line=dict(color="rgba(255,255,255,0.85)", width=1.5)))
+    fig.add_shape(type="rect", x0=5.5, x1=10.5, y0=5.5, y1=10.5, fillcolor="rgba(22,163,74,0.06)",
+                  line_width=0, layer="below")
+    fig.add_shape(type="rect", x0=0.5, x1=5.5, y0=0.5, y1=5.5, fillcolor="rgba(220,38,38,0.05)",
+                  line_width=0, layer="below")
+    gris = "rgba(128,128,128,0.6)"
+    fig.add_vline(x=5.5, line=dict(dash="dot", color=gris, width=1))
+    fig.add_hline(y=5.5, line=dict(dash="dot", color=gris, width=1))
+    for x, y, xa, ya, txt in ((10.4, 10.4, "right", "top", "Fort sur les deux"),
+                              (0.6, 0.6, "left", "bottom", "Faible sur les deux"),
+                              (0.6, 10.4, "left", "top", f"Fort : {GRANDEURS[cy][3]}"),
+                              (10.4, 0.6, "right", "bottom", f"Fort : {GRANDEURS[cx][3]}")):
+        fig.add_annotation(x=x, y=y, xanchor=xa, yanchor=ya, text=txt, showarrow=False,
+                           font=dict(size=11, color="rgba(128,128,128,0.95)"))
+    style.habiller(fig)
+    axe = dict(range=[0.5, 10.5], tickmode="array", tickvals=list(range(1, 11)), fixedrange=True,
+               zeroline=False)
+    fig.update_layout(height=480, margin=dict(l=0, r=0, t=10, b=0),
+                      xaxis=dict(title=f"{GRANDEURS[cx][0]} — note /10 (10 = {GRANDEURS[cx][3]})", **axe),
+                      yaxis=dict(title=f"{GRANDEURS[cy][0]} — note /10 (10 = {GRANDEURS[cy][3]})", **axe))
+    st.plotly_chart(fig, config=PLOTLY)
+
+    def regle(cle: str, v: str) -> str:
+        lbl, bas_bon, unite, meilleur = GRANDEURS[cle]
+        ok = df[v].notna()
+        if not ok.any():
+            return f"- **{lbl}** : aucune valeur disponible, toutes les lignes sont à 1."
+        d = df[ok]
+        i_max, i_min = d[v].idxmax(), d[v].idxmin()
+        i_best, i_worst = (i_min, i_max) if bas_bon else (i_max, i_min)
+        nom = lambda i: f"{_court(df.at[i, 'nom'], 22)} ({_cellule(float(df.at[i, v]), unite)})"
+        sans = df.loc[~ok, "nom"].tolist()
+        txt = f"- **{lbl}** ({meilleur} = mieux) : 10 = {nom(i_best)}"
+        if len(d) > 1:
+            txt += f" · {2 if sans else 1} = {nom(i_worst)}"
+        if sans:
+            txt += " · 1 = sans valeur : " + ", ".join(_court(n, 22) for n in sans)
+        return txt
+
+    regles = [regle(cx, "vx")] + ([regle(cy, "vy")] if cy != cx else [])
+    st.caption("Chaque ligne reçoit, sur chaque axe, une **note de 1 à 10 relative à ce portefeuille** : 10 = le "
+               "meilleur du lot, 1 = pas de valeur (ex. société déficitaire, sans PER). Les écarts entre notes "
+               "sont des écarts de classement, pas de valeur. Taille = poids, couleur = performance"
+               + (", ◆ = watchlist" if not suivis_df.empty else "") + ".\n\n" + "\n".join(regles)
+               + (f"\n\nETF non affichés (pas de fondamentaux) : {', '.join(etfs)}." if etfs else ""))
+
+
 @st.fragment
 def pf_graphiques() -> None:
     if trans.empty:
@@ -1588,6 +1732,8 @@ def pf_graphiques() -> None:
             contrib = pos_fig.assign(contrib=pos["pv_latente"] + pos["dividendes"]).sort_values("contrib")
             graphique_barres(contrib, "contrib", {"contrib": "PV latente + dividendes (€)", "nom": ""},
                              valeur_infobulle="%{x:+,.0f} €")
+
+        matrice_notes()
 
     if not ventes.empty or not div.empty:
         with st.expander("Plus-values réalisées & dividendes"):

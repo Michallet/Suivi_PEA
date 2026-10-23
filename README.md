@@ -38,7 +38,7 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 |---|---|
 | `app.py` | Interface : 5 onglets (Portefeuille · Historique · Projet · Watchlist · Saisie), cartes de lignes, blocs IA/chat (dans un dépliant), import par captures |
 | `style.py` | Présentation : CSS adaptatif (largeur, grilles de cartes, bandeau démo cliquable), palette et habillage communs des graphiques Plotly (police, nombres français, infobulles) |
-| `calculs.py` | Calculs purs : positions/PRM, plus-values, cash, synthèse, TWR, reconstitution d'historique, scénarios, répartitions |
+| `calculs.py` | Calculs purs : positions/PRM, plus-values, cash, synthèse, TWR, reconstitution d'historique, scénarios, répartitions, notes relatives 1-10 (`note_relative`) |
 | `technique.py` | Indicateurs techniques purs (MM, RSI, stochastique, Bollinger) et note /10 |
 | `concurrents.py` | Concurrent d'un titre : suggestion IA validée, saisie manuelle, comparaison des multiples (réseau injecté) |
 | `import_ecran.py` | Import par captures : nettoyage du JSON Gemini, résolution des ISIN, opérations proposées (logique pure) |
@@ -83,6 +83,19 @@ Le graphique « Performance vs indice » ajoute, en plus de l'indice, la courbe 
 - Exclus : compte `demo` (ne voit rien, ne partage rien), soi-même, comptes absents des secrets. Pseudo vide = « Anonyme » ;
   pseudos identiques suffixés `(2)`… Cache 2 min. Décocher coupe le partage dès l'expiration du cache.
 - Courbes alignées sur la période choisie ; un ami dont l'historique commence plus tard démarre à 100 à son 1er point.
+
+### Matrice de notes (Portefeuille, sous les graphiques)
+Nuage de points croisant **deux grandeurs au choix** (PER, PER prévisionnel, EV/EBITDA, capitalisation/CA, marge nette,
+bénéfice net, EBITDA, CA, capitalisation ; défaut : bénéfice net × PER). Chaque grandeur est convertie en **note de 1 à
+10 par rang, relative aux lignes affichées** (`calculs.note_relative`) : échelle toujours identique, sans souci de
+négatifs ni d'échelle log.
+- **10 = le meilleur** : PER, PER prévisionnel, EV/EBITDA et capitalisation/CA **bas = 10** ; marge, bénéfice, EBITDA, CA,
+  capitalisation **hauts = 10**.
+- **Valeur absente ou ≤ 0 pour un ratio de valorisation (société déficitaire) = note 1** ; les lignes renseignées sont alors
+  réparties sur 2 → 10. Aucune ligne n'est écartée, sauf les **ETF** (pas de fondamentaux), listés sous le graphique.
+- Case « Inclure la watchlist » (tout ou rien, décochée par défaut) ; taille = poids, couleur = performance, ◆ = watchlist.
+  Séparation à 5,5 ; il faut au moins 3 actions. La phrase sous le graphique donne la règle chiffrée du portefeuille.
+- Les notes sont **relatives** : ajouter ou retirer une ligne les fait bouger ; non comparables d'un portefeuille à l'autre.
 
 ### Indicateurs techniques (`technique.py`)
 Sélecteur *Fondamentaux | Indicateurs techniques* dans Portefeuille, Projet et Watchlist ; les bougies (~1 an) ne

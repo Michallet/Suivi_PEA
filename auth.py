@@ -129,7 +129,7 @@ def connecter_demo_par_defaut() -> None:
 
 # Préfixes des clés de session propres à un compte (relevé d'import, chat, sélections, brouillons…).
 PREFIXES_ETAT_COMPTE = ("chat_", "wl_", "scenario_", "ed_", "imp", "vue_", "cmp_", "cedit_", "csug_",
-                        "cisin_", "ctk_", "conc_", "part_", "flash")
+                        "cisin_", "ctk_", "conc_", "part_", "qd_", "flash")
 
 
 def _vider_etat_compte(inclure_formulaire: bool = True) -> None:
