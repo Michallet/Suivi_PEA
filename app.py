@@ -11,7 +11,6 @@ from zoneinfo import ZoneInfo
 from urllib.parse import quote_plus
 
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -1459,7 +1458,7 @@ def graphique_secteurs(df: pd.DataFrame) -> None:
     total = float(d["valeur"].sum())
     couleurs = [style.PALETTE[i % len(style.PALETTE)] for i in range(len(d))]
     fig = go.Figure(go.Pie(
-        labels=d["secteur"], values=d["valeur"], hole=0.62, sort=False, direction="clockwise",
+        labels=d["secteur"].tolist(), values=d["valeur"].tolist(), hole=0.62, sort=False, direction="clockwise",
         marker=dict(colors=couleurs, line=dict(color=style.fond_page(), width=2)),
         texttemplate="%{percent:.0%}", textposition="inside", insidetextorientation="horizontal",
         textfont=dict(color=[style.texte_sur(c) for c in couleurs], size=13),
@@ -1474,18 +1473,52 @@ def graphique_secteurs(df: pd.DataFrame) -> None:
     st.plotly_chart(fig, config=PLOTLY)
 
 
+def graphique_treemap(d: pd.DataFrame) -> go.Figure:
+    """Treemap PEA › secteur › ligne ; couleur = performance (moyenne pondérée par la valeur pour les niveaux
+    supérieurs). Construit directement avec Plotly (listes simples), sans plotly.express."""
+    ids, labels, parents, valeurs, perfs = ["PEA"], ["PEA"], [""], [], []
+    v_tot = float(d["valeur"].sum())
+    perfs.append(float((d["valeur"] * d["perf_pct"]).sum() / v_tot) if v_tot else 0.0)
+    valeurs.append(v_tot)
+    for secteur, g in d.groupby("secteur"):
+        v_s = float(g["valeur"].sum())
+        ids.append(f"S|{secteur}")
+        labels.append(str(secteur))
+        parents.append("PEA")
+        valeurs.append(v_s)
+        perfs.append(float((g["valeur"] * g["perf_pct"]).sum() / v_s) if v_s else 0.0)
+        for r in g.itertuples():
+            ids.append(f"L|{r.isin}")
+            labels.append(str(r.nom))
+            parents.append(f"S|{secteur}")
+            valeurs.append(float(r.valeur))
+            perfs.append(float(r.perf_pct))
+    lim = max(abs(p) for p in perfs) or 1.0
+    fig = go.Figure(go.Treemap(
+        ids=ids, labels=labels, parents=parents, values=valeurs, branchvalues="total",
+        marker=dict(colors=perfs, colorscale="RdYlGn", cmin=-lim, cmax=lim, showscale=False),
+        hovertemplate="<b>%{label}</b><br>%{value:,.0f} €<br>Performance : %{color:+.1f} %<extra></extra>"))
+    style.habiller(fig)
+    fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=360)
+    return fig
+
+
 def graphique_barres(df: pd.DataFrame, x: str, labels: dict, titre: str | None = None,
                      valeur_infobulle: str = "%{x:+.1f} %") -> None:
     """Barres horizontales (une par ligne), colorées du rouge au vert autour de 0.
 
     `valeur_infobulle` : format (arrondi) de la valeur affichée au toucher / au survol.
     """
-    fig = px.bar(df, x=x, y="nom", orientation="h", color=x, color_continuous_scale="RdYlGn",
-                 color_continuous_midpoint=0, labels=labels, title=titre)
-    fig.update_traces(hovertemplate="<b>%{y}</b><br>" + valeur_infobulle + "<extra></extra>")
+    valeurs = [float(v) for v in df[x]]
+    lim = max(abs(v) for v in valeurs) if valeurs else 1.0
+    fig = go.Figure(go.Bar(
+        x=valeurs, y=[str(n) for n in df["nom"]], orientation="h",
+        marker=dict(color=valeurs, colorscale="RdYlGn", cmin=-lim, cmax=lim, showscale=False),
+        hovertemplate="<b>%{y}</b><br>" + valeur_infobulle + "<extra></extra>"))
     style.habiller(fig)
     fig.update_layout(margin=dict(l=0, r=0, t=30 if titre else 10, b=0), height=max(220, 44 * len(df)),
-                      coloraxis_showscale=False)
+                      title=dict(text=titre) if titre else None,
+                      xaxis_title=labels.get(x) or None, yaxis_title=labels.get("nom") or None)
     fig.update_xaxes(fixedrange=True)
     fig.update_yaxes(fixedrange=True)
     st.plotly_chart(fig, config=PLOTLY)
@@ -1608,8 +1641,7 @@ def matrice_notes() -> None:
                                "poids": None, "perf": None, "wl": True})
     for l in lignes:
         l["etf"] = est_etf(l["nom"], fonds.get(l["ticker"], {}))
-    etfs = [l["nom"] for l in lignes if l["etf"]]
-    lignes = [l for l in lignes if not l["etf"]]
+    lignes = [l for l in lignes if not l["etf"]]  # les ETF n'ont pas de fondamentaux : écartés de la matrice
     if len(lignes) < 3:
         st.info("Au moins 3 actions (hors ETF) sont nécessaires pour comparer des notes.")
         return
@@ -1631,7 +1663,7 @@ def matrice_notes() -> None:
     def trace(d, **marqueur):
         info = [[l.nom, ligne_info(l, cx, l.vx, l.nx), ligne_info(l, cy, l.vy, l.ny),
                  "Watchlist" if l.wl else f"Poids : {fmt(l.poids, 0)} %"] for l in d.itertuples()]
-        return go.Scatter(x=d["px"], y=d["py"], mode="markers+text" if len(df) <= 12 else "markers",
+        return go.Scatter(x=d["px"].tolist(), y=d["py"].tolist(), mode="markers+text" if len(df) <= 12 else "markers",
                           text=[_court(n, 12) for n in d["nom"]], textposition="top center",
                           textfont=dict(size=11), customdata=info, showlegend=False,
                           hovertemplate="<b>%{customdata[0]}</b><br>%{customdata[1]}<br>"
@@ -1643,7 +1675,7 @@ def matrice_notes() -> None:
     if not detenus_df.empty:
         lim = max(5.0, float(detenus_df["perf"].abs().max()))
         fig.add_trace(trace(detenus_df, size=[min(46, 14 + 4.5 * max(p, 0) ** 0.5) for p in detenus_df["poids"]],
-                            color=detenus_df["perf"], colorscale="RdYlGn", cmin=-lim, cmax=lim,
+                            color=detenus_df["perf"].tolist(), colorscale="RdYlGn", cmin=-lim, cmax=lim,
                             showscale=False, opacity=0.92, line=dict(color="rgba(255,255,255,0.85)", width=1.5)))
     if not suivis_df.empty:
         fig.add_trace(trace(suivis_df, size=15, symbol="diamond", color=style.ARDOISE, opacity=0.9,
@@ -1669,29 +1701,10 @@ def matrice_notes() -> None:
                       yaxis=dict(title=f"{GRANDEURS[cy][0]} — note /10 (10 = {GRANDEURS[cy][3]})", **axe))
     st.plotly_chart(fig, config=PLOTLY)
 
-    def regle(cle: str, v: str) -> str:
-        lbl, bas_bon, unite, meilleur = GRANDEURS[cle]
-        ok = df[v].notna()
-        if not ok.any():
-            return f"- **{lbl}** : aucune valeur disponible, toutes les lignes sont à 1."
-        d = df[ok]
-        i_max, i_min = d[v].idxmax(), d[v].idxmin()
-        i_best, i_worst = (i_min, i_max) if bas_bon else (i_max, i_min)
-        nom = lambda i: f"{_court(df.at[i, 'nom'], 22)} ({_cellule(float(df.at[i, v]), unite)})"
-        sans = df.loc[~ok, "nom"].tolist()
-        txt = f"- **{lbl}** ({meilleur} = mieux) : 10 = {nom(i_best)}"
-        if len(d) > 1:
-            txt += f" · {2 if sans else 1} = {nom(i_worst)}"
-        if sans:
-            txt += " · 1 = sans valeur : " + ", ".join(_court(n, 22) for n in sans)
-        return txt
-
-    regles = [regle(cx, "vx")] + ([regle(cy, "vy")] if cy != cx else [])
     st.caption("Chaque ligne reçoit, sur chaque axe, une **note de 1 à 10 relative à ce portefeuille** : 10 = le "
                "meilleur du lot, 1 = pas de valeur (ex. société déficitaire, sans PER). Les écarts entre notes "
                "sont des écarts de classement, pas de valeur. Taille = poids, couleur = performance"
-               + (", ◆ = watchlist" if not suivis_df.empty else "") + ".\n\n" + "\n".join(regles)
-               + (f"\n\nETF non affichés (pas de fondamentaux) : {', '.join(etfs)}." if etfs else ""))
+               + (", ◆ = watchlist" if not suivis_df.empty else "") + ".")
 
 
 @st.fragment
@@ -1714,12 +1727,7 @@ def pf_graphiques() -> None:
             graphique_secteurs(pos.groupby("secteur")["valeur"].sum().reset_index())
         with g_treemap:
             st.markdown("**Par ligne** · couleur = performance")
-            fig = px.treemap(pos_fig, path=[px.Constant("PEA"), "secteur", "nom"], values="valeur",
-                             color="perf_pct", color_continuous_scale="RdYlGn", color_continuous_midpoint=0)
-            fig.update_traces(hovertemplate="<b>%{label}</b><br>%{value:,.0f} €<br>"
-                                            "Performance : %{color:+.1f} %<extra></extra>")
-            style.habiller(fig)
-            fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=360, coloraxis_showscale=False)
+            fig = graphique_treemap(pos_fig)
             st.plotly_chart(fig, config=PLOTLY)
 
         g_perf, g_contrib = st.columns(2)

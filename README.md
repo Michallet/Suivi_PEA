@@ -92,7 +92,7 @@ négatifs ni d'échelle log.
 - **10 = le meilleur** : PER, PER prévisionnel, EV/EBITDA et capitalisation/CA **bas = 10** ; marge, bénéfice, EBITDA, CA,
   capitalisation **hauts = 10**.
 - **Valeur absente ou ≤ 0 pour un ratio de valorisation (société déficitaire) = note 1** ; les lignes renseignées sont alors
-  réparties sur 2 → 10. Aucune ligne n'est écartée, sauf les **ETF** (pas de fondamentaux), listés sous le graphique.
+  réparties sur 2 → 10. Seuls les **ETF** (pas de fondamentaux) sont écartés.
 - Case « Inclure la watchlist » (tout ou rien, décochée par défaut) ; taille = poids, couleur = performance, ◆ = watchlist.
   Séparation à 5,5 ; il faut au moins 3 actions. La phrase sous le graphique donne la règle chiffrée du portefeuille.
 - Les notes sont **relatives** : ajouter ou retirer une ligne les fait bouger ; non comparables d'un portefeuille à l'autre.
@@ -231,7 +231,8 @@ dépendent pas de Streamlit et se testent seuls (réseau à simuler).
   analyse et chat sont côte à côte sur grand écran.
 - Tous les graphiques passent par `style.habiller(fig)` : palette douce commune (`style.PALETTE`), police système moderne,
   nombres à la française, infobulles arrondies (€ sans décimale, % à 1 décimale). Un nouveau graphique doit en faire autant
-  et définir un `hovertemplate` arrondi.
+  et définir un `hovertemplate` arrondi. Pas de `plotly.express` : graphiques construits avec `plotly.graph_objects` et des
+  listes simples (évite des avertissements de dépréciation dans les logs).
 
 ## Pistes
 
