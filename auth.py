@@ -16,6 +16,15 @@ CLE_SESSION = "user_id"
 MAX_ECHECS = 8
 FENETRE_S = 15 * 60
 
+# Interrupteur : ouverture directe sur le compte `demo` (sans écran de connexion).
+#   True  -> l'app s'ouvre sur le compte demo ; pour passer à un compte personnel, cliquer sur le verrou 🔒
+#            ou sur le bandeau « mode démo » (ce qui affiche le formulaire de connexion).
+#   False -> l'app s'ouvre sur l'écran de connexion (comportement historique).
+# Le secret facultatif AUTO_CONNEXION_DEMO (true/false) prime sur cette valeur : pas besoin de modifier le code.
+CONNEXION_DEMO_AUTO = True
+# Posé quand l'utilisateur quitte volontairement un compte : empêche de le reconnecter d'office à la démo.
+CLE_CONNEXION_DEMANDEE = "connexion_demandee"
+
 
 @st.cache_resource
 def _tentatives_connexion() -> dict:
@@ -95,6 +104,29 @@ def secret(nom: str):
         return None
 
 
+def connexion_demo_auto_active() -> bool:
+    """Interrupteur effectif : secret AUTO_CONNEXION_DEMO s'il existe, sinon CONNEXION_DEMO_AUTO."""
+    valeur = secret("AUTO_CONNEXION_DEMO")
+    if valeur is None:
+        return CONNEXION_DEMO_AUTO
+    if isinstance(valeur, str):
+        return valeur.strip().lower() in {"1", "true", "vrai", "oui", "yes", "on"}
+    return bool(valeur)
+
+
+def connecter_demo_par_defaut() -> None:
+    """À l'ouverture de la session, connecte le compte demo si l'interrupteur est actif.
+
+    Ne fait rien si une session est déjà ouverte, si l'utilisateur vient de se déconnecter
+    (il veut alors le formulaire de connexion) ou si le compte demo n'est pas configuré comme tel.
+    """
+    if connecte() or st.session_state.get(CLE_CONNEXION_DEMANDEE) or not connexion_demo_auto_active():
+        return
+    if _config_utilisateurs().get("demo", {}).get("demo", False):
+        _vider_etat_compte(inclure_formulaire=False)  # session périmée : aucune donnée d'un autre compte
+        st.session_state[CLE_SESSION] = "demo"
+
+
 # Préfixes des clés de session propres à un compte (relevé d'import, chat, sélections, brouillons…).
 PREFIXES_ETAT_COMPTE = ("chat_", "wl_", "scenario_", "ed_", "imp", "vue_", "cmp_", "cedit_", "csug_",
                         "cisin_", "ctk_", "conc_", "part_", "flash")
@@ -144,10 +176,16 @@ def formulaire_connexion() -> None:
     # On conserve login_user/login_password pendant ce rerun (widgets de ce formulaire actifs).
     _vider_etat_compte(inclure_formulaire=False)
     st.session_state[CLE_SESSION] = identifiant
+    st.session_state.pop(CLE_CONNEXION_DEMANDEE, None)
     st.rerun()
 
 
 def deconnecter() -> None:
-    """Efface l'identité de session et les éléments UI pouvant contenir une conversation."""
+    """Efface l'identité de session et les éléments UI pouvant contenir une conversation.
+
+    Mémorise aussi que la connexion est demandée : le formulaire s'affiche (au lieu de
+    reconnecter automatiquement le compte demo) jusqu'à la prochaine connexion réussie.
+    """
     st.session_state.pop(CLE_SESSION, None)
     _vider_etat_compte(inclure_formulaire=True)
+    st.session_state[CLE_CONNEXION_DEMANDEE] = True

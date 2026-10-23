@@ -22,10 +22,14 @@ import db
 import donnees as D
 import import_ecran as IE
 import llm
+import style
 import technique as TECH
 from schema import SCHEMA
 
-st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="centered")
+# layout="wide" : plein écran sur mobile comme avant ; sur tablette / PC, style.py centre le contenu
+# (1 320 px max), met les listes de cartes en grille et les graphiques côte à côte.
+st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="wide")
+style.appliquer()
 CHRONO = {"debut": time.perf_counter()}  # affiché en bas de page si le secret DEBUG_PERF est activé
 
 
@@ -128,13 +132,15 @@ def enregistrer_ticker(isin: str, ticker: str, nom: str | None = None, suggerer:
 # --------------------------------------------------------------------------- #
 # Authentification : tout compte connecté utilise Supabase ; seule l'IA est interdite en démo.
 # --------------------------------------------------------------------------- #
+auth.connecter_demo_par_defaut()  # interrupteur auth.CONNEXION_DEMO_AUTO (ou secret AUTO_CONNEXION_DEMO)
 mode_demo = auth.est_demo()
 
 if not auth.connecte():
-    st.title("📈 Suivi PEA")
-    st.info("Connectez-vous pour accéder à un portefeuille. Les identifiants du compte démo "
-            "sont préremplis (demo / demo).")
-    auth.formulaire_connexion()
+    with st.container(key="connexion"):
+        st.title("📈 Suivi PEA")
+        st.info("Connectez-vous pour accéder à un portefeuille. Les identifiants du compte démo "
+                "sont préremplis (demo / demo) : « Entrer » suffit pour revenir à la démo.")
+        auth.formulaire_connexion()
     st.stop()
 
 # Tous les comptes (demo compris) passent par le même stockage, filtré par db.py sur user_id.
@@ -143,22 +149,31 @@ if "flash" in st.session_state:
 if "flash_conc" in st.session_state:
     st.toast(st.session_state.pop("flash_conc"), icon="⚖️")
 
-t1, t2, t3 = st.columns([4, 1, 1], vertical_alignment="center")
-t1.title("📈 Mon PEA")
-t1.caption(f"Compte : {auth.utilisateur()}")
+with st.container(key="entete"):
+    t1, t2, t3 = st.columns([4, 1, 1], vertical_alignment="center")
+    t1.title("📈 Mon PEA")
+    t1.caption(f"Compte : {auth.utilisateur()}")
+    if t2.button("🔄", help="Actualiser les cours"):
+        D.cours_batch.clear()
+        D.fondamentaux_batch.clear()
+        D.ohlc_batch.clear()
+        db.rafraichir()
+        st.rerun()
+    # Le verrou fait quitter le compte courant ; en démo, il ouvre le formulaire de connexion.
+    if t3.button("🔒", key="btn_verrou",
+                 help="Se connecter à un compte personnel" if mode_demo else "Se déconnecter"):
+        auth.deconnecter()
+        st.rerun()
 if mode_demo:
-    st.info("🧪 **Compte démo partagé** : portefeuille fictif persistant (les cours de marché peuvent être réels). "
-            "Les ajouts et suppressions sont visibles par tous les visiteurs du compte demo. "
-            "N'y saisissez aucune donnée personnelle. Les fonctions IA sont désactivées.")
-if t2.button("🔄", help="Actualiser les cours"):
-    D.cours_batch.clear()
-    D.fondamentaux_batch.clear()
-    D.ohlc_batch.clear()
-    db.rafraichir()
-    st.rerun()
-if t3.button("🔒", help="Se déconnecter"):
-    auth.deconnecter()
-    st.rerun()
+    # Le bandeau est cliquable : même effet que le verrou.
+    if st.button("🧪 **Mode démo** : portefeuille fictif partagé · touchez ici pour vous connecter",
+                 key="btn_bandeau_demo",
+                 help="Les ajouts et suppressions sont visibles par tous les visiteurs du compte demo. "
+                      "Les cours de marché peuvent être réels. Les fonctions IA sont désactivées."):
+        auth.deconnecter()
+        st.rerun()
+    st.caption("Les ajouts et suppressions sont visibles de tous les visiteurs de la démo : "
+               "n'y saisissez aucune donnée personnelle. IA désactivée.")
 
 # --------------------------------------------------------------------------- #
 # Chargement des données
@@ -584,8 +599,8 @@ def afficher_analyse(res: dict, quand, perime: bool, scenario: bool = False) -> 
     st.caption(llm.AVERTISSEMENT)
 
 
-def bloc_ia() -> None:
-    with st.container(border=True):
+def bloc_ia(cadre: bool = True) -> None:
+    with st.container(border=cadre):
         st.markdown("#### ✨ Analyse IA")
         derniere = None if analyses.empty else analyses.sort_values("id").iloc[-1]
 
@@ -635,9 +650,9 @@ def bloc_ia() -> None:
 
 
 def bloc_ia_scenario(sid: int, pos_p: pd.DataFrame, cash_p: float,
-                     operations: str, versement: float) -> None:
+                     operations: str, versement: float, cadre: bool = True) -> None:
     """Analyse IA du scénario : note les 4 critères du projeté + avantages/inconvénients vs actuel."""
-    with st.container(border=True):
+    with st.container(border=cadre):
         st.markdown("#### ✨ Analyse IA du scénario")
         if mode_demo:
             st.button("✨ Analyser ce scénario", disabled=True, key="ias_btn_demo")
@@ -742,13 +757,13 @@ def contexte_chat(modele: str, scenario: bool = False, sid=None, pos_p=None, cas
 
 
 def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
-              operations: str = "", versement: float = 0.0) -> None:
+              operations: str = "", versement: float = 0.0, cadre: bool = True) -> None:
     """Chatbot : discussion libre sur le portefeuille actuel ou sur un scénario projeté.
     Une conversation distincte par scénario (clé de session dédiée)."""
     uid = auth.utilisateur() or "inconnu"
     cle_session = f"chat_{uid}_scen_{sid}" if scenario else f"chat_{uid}_msgs"
     titre = "#### 💬 Discuter de ce scénario" if scenario else "#### 💬 Discuter de mon portefeuille"
-    with st.container(border=True):
+    with st.container(border=cadre):
         st.markdown(titre)
         if mode_demo:
             st.caption("Chat IA désactivé sur le compte démo pour éviter toute consommation de tokens.")
@@ -811,39 +826,40 @@ def onglet_watchlist() -> None:
     techs = {}
     if vue == "Techniques":
         techs = calculer_techniques([tmap.loc[i, "ticker"] for i in wl["isin"] if i in tmap.index])
-    for r in wl.itertuples():
-        c = cours_all[cours_all["isin"] == r.isin]
-        prix = prev = None
-        if not c.empty:
-            prix, prev = c.iloc[0]["prix"], c.iloc[0]["prev_close"]
-        var = (prix / prev - 1) * 100 if prix and prev and not pd.isna(prev) else None
-        note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
-        ticker = tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None
-        f = fonds.get(ticker, {}) if ticker else {}
-        res_t = techs.get(ticker) if vue == "Techniques" else None
-        resume_t = TECH.resume(res_t)
+    with st.container(key="grille_wl"):  # grille de cartes (CSS)
+        for r in wl.itertuples():
+            c = cours_all[cours_all["isin"] == r.isin]
+            prix = prev = None
+            if not c.empty:
+                prix, prev = c.iloc[0]["prix"], c.iloc[0]["prev_close"]
+            var = (prix / prev - 1) * 100 if prix and prev and not pd.isna(prev) else None
+            note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
+            ticker = tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None
+            f = fonds.get(ticker, {}) if ticker else {}
+            res_t = techs.get(ticker) if vue == "Techniques" else None
+            resume_t = TECH.resume(res_t)
 
-        with st.container(border=True):
-            g, d = st.columns([3, 2])
-            g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}"
-                       + (f"  \nTechnique : {resume_t}" if resume_t else "")
-                       + lien_actualites(nom_de(tmap, r.isin)))
-            txt = f"<b>{fmt(prix)} €</b>" if prix and not pd.isna(prix) else "N/A"
-            if var is not None:
-                txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} % auj.")
-            d.markdown(f"<div style='text-align:right'>{txt}</div>", unsafe_allow_html=True)
-            with st.expander("Détails"):
-                ident = [("ISIN · ticker", f"{r.isin} · {ticker or '—'}")]
-                if vue == "Techniques":
-                    st.markdown(_puces([("Cours", f"{fmt(prix)} €")] + ident))
-                    afficher_technique(res_t)
-                else:
-                    st.markdown(_puces([("Cours", f"{fmt(prix)} €")] + lignes_fondamentaux(f) + ident))
-                    bloc_concurrent(r.isin, nom_de(tmap, r.isin), f, "wl")
-                if st.button("🗑 Retirer de la watchlist", key=f"wl_del_{r.isin}"):
-                    db.supprimer("watchlist", r.isin, cle="isin")
-                    flash("Retiré de la watchlist")
-                    st.rerun()
+            with st.container(border=True):
+                g, d = st.columns([3, 2])
+                g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}"
+                           + (f"  \nTechnique : {resume_t}" if resume_t else "")
+                           + lien_actualites(nom_de(tmap, r.isin)))
+                txt = f"<b>{fmt(prix)} €</b>" if prix and not pd.isna(prix) else "N/A"
+                if var is not None:
+                    txt += "<br>" + pastille(var, f"{fmt(var, 2, True)} % auj.")
+                d.markdown(f"<div style='text-align:right'>{txt}</div>", unsafe_allow_html=True)
+                with st.expander("Détails"):
+                    ident = [("ISIN · ticker", f"{r.isin} · {ticker or '—'}")]
+                    if vue == "Techniques":
+                        st.markdown(_puces([("Cours", f"{fmt(prix)} €")] + ident))
+                        afficher_technique(res_t)
+                    else:
+                        st.markdown(_puces([("Cours", f"{fmt(prix)} €")] + lignes_fondamentaux(f) + ident))
+                        bloc_concurrent(r.isin, nom_de(tmap, r.isin), f, "wl")
+                    if st.button("🗑 Retirer de la watchlist", key=f"wl_del_{r.isin}"):
+                        db.supprimer("watchlist", r.isin, cle="isin")
+                        flash("Retiré de la watchlist")
+                        st.rerun()
 
     with st.expander("➕ Ajouter une action / un ETF"):
         # Remise à zéro des champs après un ajout, avant la création des widgets.
@@ -887,8 +903,11 @@ def graphique_compare(df: pd.DataFrame, cle: str) -> None:
     d = df.iloc[::-1].copy()  # le plus gros en haut
     d[cle] = sans_parentheses(d[cle])  # noms épurés
     fig = go.Figure()
-    fig.add_bar(y=d[cle], x=d["reel"], name="Actuel", orientation="h")
-    fig.add_bar(y=d[cle], x=d["projete"], name="Projeté", orientation="h")
+    fig.add_bar(y=d[cle], x=d["reel"], name="Actuel", orientation="h", marker_color=style.ARDOISE,
+                hovertemplate="<b>%{y}</b><br>Actuel : %{x:.1f} %<extra></extra>")
+    fig.add_bar(y=d[cle], x=d["projete"], name="Projeté", orientation="h", marker_color=style.BLEU,
+                hovertemplate="<b>%{y}</b><br>Projeté : %{x:.1f} %<extra></extra>")
+    style.habiller(fig)
     fig.update_layout(barmode="group", margin=dict(l=0, r=0, t=10, b=0), height=max(240, 52 * len(d) + 70),
                       legend=dict(orientation="h", y=-0.12), xaxis_title="% du PEA")
     fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
@@ -1021,10 +1040,13 @@ def onglet_projet() -> None:
     rep_r, rep_p = C.repartition(pos, s["cash"]), C.repartition(pos_p, cash_p)
     par_ligne = C.comparer_repartitions(rep_r, rep_p, "label")
     par_secteur = C.comparer_repartitions(rep_r, rep_p, "secteur")
-    st.markdown("**Par ligne**")
-    graphique_compare(par_ligne, "label")
-    st.markdown("**Par secteur**")
-    graphique_compare(par_secteur, "secteur")
+    g_ligne, g_secteur = st.columns(2)  # côte à côte sur PC / tablette, empilés sur mobile
+    with g_ligne:
+        st.markdown("**Par ligne**")
+        graphique_compare(par_ligne, "label")
+    with g_secteur:
+        st.markdown("**Par secteur**")
+        graphique_compare(par_secteur, "secteur")
     with st.expander("Détail des écarts (points de %)"):
         tableau = par_ligne.rename(columns={"label": "Ligne", "reel": "Actuel %", "projete": "Projeté %",
                                             "ecart": "Écart"}).round(1)
@@ -1032,11 +1054,17 @@ def onglet_projet() -> None:
     st.subheader("Lignes du scénario")
     vue = selecteur_vue("pj")
     techs = calculer_techniques(pos_p["ticker"]) if vue == "Techniques" and not pos_p.empty else {}
-    for r in pos_p.sort_values("valeur", ascending=False).itertuples():
-        carte_ligne(r, "pj", vue, techs)
+    with st.container(key="grille_pj"):
+        for r in pos_p.sort_values("valeur", ascending=False).itertuples():
+            carte_ligne(r, "pj", vue, techs)
     ops = "; ".join(f"{r.type} {r.quantite:g} × {nom_de(tmap, r.isin)}" for r in sim.itertuples())
-    bloc_ia_scenario(sid, pos_p, cash_p, ops, versement)
-    bloc_chat(scenario=True, sid=sid, pos_p=pos_p, cash_p=cash_p, operations=ops, versement=versement)
+    with st.expander("✨ Assistant IA du scénario · Analyse & Chat"):
+        col_analyse, col_chat = st.columns(2)
+        with col_analyse:
+            bloc_ia_scenario(sid, pos_p, cash_p, ops, versement, cadre=False)
+        with col_chat:
+            bloc_chat(scenario=True, sid=sid, pos_p=pos_p, cash_p=cash_p, operations=ops,
+                      versement=versement, cadre=False)
     st.caption("Simulation de répartition uniquement : aucune prévision de rendement.")
 
 
@@ -1424,10 +1452,38 @@ def onglet_saisie() -> None:
 tab_pf, tab_hist, tab_proj, tab_wl, tab_saisie = st.tabs(
     ["📊 Portefeuille", "📈 Historique", "🔭 Projet", "👀 Watchlist", "➕ Saisie"])
 
-def graphique_barres(df: pd.DataFrame, x: str, labels: dict, titre: str | None = None) -> None:
-    """Barres horizontales (une par ligne), colorées du rouge au vert autour de 0."""
+def graphique_secteurs(df: pd.DataFrame) -> None:
+    """Anneau de répartition par secteur : palette douce commune à tous les graphiques, pourcentages
+    arrondis sur l'anneau (masqués si la part est trop petite), détail arrondi au toucher / survol."""
+    d = df.sort_values("valeur", ascending=False)
+    total = float(d["valeur"].sum())
+    couleurs = [style.PALETTE[i % len(style.PALETTE)] for i in range(len(d))]
+    fig = go.Figure(go.Pie(
+        labels=d["secteur"], values=d["valeur"], hole=0.62, sort=False, direction="clockwise",
+        marker=dict(colors=couleurs, line=dict(color=style.fond_page(), width=2)),
+        texttemplate="%{percent:.0%}", textposition="inside", insidetextorientation="horizontal",
+        textfont=dict(color=[style.texte_sur(c) for c in couleurs], size=13),
+        hovertemplate="<b>%{label}</b><br>%{value:,.0f} €<br>%{percent:.1%}<extra></extra>"))
+    style.habiller(fig)
+    fig.update_layout(
+        margin=dict(l=0, r=0, t=10, b=0), height=360, showlegend=True,
+        uniformtext=dict(minsize=11, mode="hide"),
+        legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.02, yanchor="top", font=dict(size=12)),
+        annotations=[dict(text=f"<b>{fmt(total, 0)} €</b><br>en titres", x=0.5, y=0.5,
+                          showarrow=False, font=dict(size=16))])
+    st.plotly_chart(fig, config=PLOTLY)
+
+
+def graphique_barres(df: pd.DataFrame, x: str, labels: dict, titre: str | None = None,
+                     valeur_infobulle: str = "%{x:+.1f} %") -> None:
+    """Barres horizontales (une par ligne), colorées du rouge au vert autour de 0.
+
+    `valeur_infobulle` : format (arrondi) de la valeur affichée au toucher / au survol.
+    """
     fig = px.bar(df, x=x, y="nom", orientation="h", color=x, color_continuous_scale="RdYlGn",
                  color_continuous_midpoint=0, labels=labels, title=titre)
+    fig.update_traces(hovertemplate="<b>%{y}</b><br>" + valeur_infobulle + "<extra></extra>")
+    style.habiller(fig)
     fig.update_layout(margin=dict(l=0, r=0, t=30 if titre else 10, b=0), height=max(220, 44 * len(df)),
                       coloraxis_showscale=False)
     fig.update_xaxes(fixedrange=True)
@@ -1448,19 +1504,23 @@ def pf_synthese() -> None:
         st.info("Aucune transaction pour l'instant. Rendez-vous dans l'onglet « Saisie ».")
         return
 
-    c1, c2 = st.columns(2)
+    c1, c2, c3, c4 = st.columns(4)  # 4 en ligne sur PC, 2 × 2 sur mobile
     c1.metric("Valeur du PEA", f"{fmt(s['valeur_totale'])} €",
               f"{fmt(s['var_jour_eur'], 2, True)} € ({fmt(s['var_jour_pct'], 2, True)} %) auj.")
     c2.metric("Plus-value globale", f"{fmt(s['pv_globale'])} €", f"{fmt(s['perf_pct'], 2, True)} %")
-    c3, c4 = st.columns(2)
     c3.metric("Apports nets", f"{fmt(s['apports'])} €")
     c4.metric("Cash disponible", f"{fmt(s['cash'])} €")
     st.progress(min(s["plafond_pct"] / 100, 1.0),
                 text=f"Plafond de versements : {fmt(s['versements_cumules'], 0)} / 150 000 € "
                      f"({fmt(s['plafond_pct'], 1)} %)")
 
-    bloc_ia()
-    bloc_chat()
+    # Bandeau IA replié par défaut : un clic le déplie ; sur PC / tablette, analyse et chat côte à côte.
+    with st.expander("✨ Assistant IA · Analyse & Chat"):
+        col_analyse, col_chat = st.columns(2)
+        with col_analyse:
+            bloc_ia(cadre=False)
+        with col_chat:
+            bloc_chat(cadre=False)
 
     if s["cash"] < -0.01:
         st.warning("Cash négatif : il manque des versements dans le journal "
@@ -1485,8 +1545,9 @@ def pf_lignes() -> None:
         return
     vue = selecteur_vue("pf")
     techs = calculer_techniques(pos["ticker"]) if vue == "Techniques" else {}
-    for r in pos.sort_values("valeur", ascending=False).itertuples():
-        carte_ligne(r, "pf", vue, techs)
+    with st.container(key="grille_pf"):  # grille de cartes (CSS) : 1 colonne sur mobile, 2-3 sur PC
+        for r in pos.sort_values("valeur", ascending=False).itertuples():
+            carte_ligne(r, "pf", vue, techs)
 
 
 @st.fragment
@@ -1501,27 +1562,32 @@ def pf_graphiques() -> None:
         rendement_div = total_dividendes / s["valeur_totale"] * 100 if s["valeur_totale"] > 0 else 0.0
         col3.metric("Rendement dividendes", f"{fmt(rendement_div, 1)} %", f"{fmt(total_dividendes)} €")
 
-        st.subheader("Répartition")
-        fig = px.pie(pos.groupby("secteur")["valeur"].sum().reset_index(), values="valeur", names="secteur",
-                     title="Par secteur", hole=0.3)
-        fig.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=250,
-                          showlegend=True, legend=dict(orientation="h", y=-0.1))
-        fig.update_traces(textposition="inside", textinfo="percent+label")
-        st.plotly_chart(fig, config=PLOTLY)
-
         pos_fig = pos.assign(nom=sans_parentheses(pos["nom"]))
-        fig = px.treemap(pos_fig, path=[px.Constant("PEA"), "secteur", "nom"], values="valeur",
-                         color="perf_pct", color_continuous_scale="RdYlGn", color_continuous_midpoint=0)
-        fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=340, coloraxis_showscale=False)
-        st.plotly_chart(fig, config=PLOTLY)
+        st.subheader("Répartition")
+        g_secteurs, g_treemap = st.columns(2)  # côte à côte sur PC / tablette, empilés sur mobile
+        with g_secteurs:
+            st.markdown("**Par secteur**")
+            graphique_secteurs(pos.groupby("secteur")["valeur"].sum().reset_index())
+        with g_treemap:
+            st.markdown("**Par ligne** · couleur = performance")
+            fig = px.treemap(pos_fig, path=[px.Constant("PEA"), "secteur", "nom"], values="valeur",
+                             color="perf_pct", color_continuous_scale="RdYlGn", color_continuous_midpoint=0)
+            fig.update_traces(hovertemplate="<b>%{label}</b><br>%{value:,.0f} €<br>"
+                                            "Performance : %{color:+.1f} %<extra></extra>")
+            style.habiller(fig)
+            fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=360, coloraxis_showscale=False)
+            st.plotly_chart(fig, config=PLOTLY)
 
-        st.subheader("Performance latente par ligne")
-        graphique_barres(pos_fig.sort_values("perf_pct", ascending=False), "perf_pct",
-                         {"perf_pct": "Performance %", "nom": ""}, "Performance latente (vs PRM)")
-
-        st.subheader("Contribution à la performance (€)")
-        contrib = pos_fig.assign(contrib=pos["pv_latente"] + pos["dividendes"]).sort_values("contrib")
-        graphique_barres(contrib, "contrib", {"contrib": "PV latente + dividendes (€)", "nom": ""})
+        g_perf, g_contrib = st.columns(2)
+        with g_perf:
+            st.subheader("Performance latente par ligne")
+            graphique_barres(pos_fig.sort_values("perf_pct", ascending=False), "perf_pct",
+                             {"perf_pct": "Performance %", "nom": ""}, "Performance latente (vs PRM)")
+        with g_contrib:
+            st.subheader("Contribution à la performance (€)")
+            contrib = pos_fig.assign(contrib=pos["pv_latente"] + pos["dividendes"]).sort_values("contrib")
+            graphique_barres(contrib, "contrib", {"contrib": "PV latente + dividendes (€)", "nom": ""},
+                             valeur_infobulle="%{x:+,.0f} €")
 
     if not ventes.empty or not div.empty:
         with st.expander("Plus-values réalisées & dividendes"):
@@ -1572,62 +1638,73 @@ def onglet_historique() -> None:
         if len(sn) < 2:
             st.info("Pas assez de points sur cette période.")
         else:
-            fig = go.Figure()
-            fig.add_scatter(x=sn["date"], y=sn["valeur"], name="Valeur du PEA", mode="lines")
-            fig.add_scatter(x=sn["date"], y=sn["apports"], name="Apports nets", mode="lines",
-                            line=dict(shape="hv", dash="dot"))
-            fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=300,
-                              legend=dict(orientation="h", y=-0.15))
-            fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
-            fig.update_yaxes(fixedrange=True)
-            st.plotly_chart(fig, config=PLOTLY)
+            g_valeur, g_indice = st.columns(2)  # côte à côte sur PC / tablette, empilés sur mobile
+            with g_valeur:
+                st.subheader("Valeur du PEA")
+                fig = go.Figure()
+                fig.add_scatter(x=sn["date"], y=sn["valeur"], name="Valeur du PEA", mode="lines",
+                                line=dict(color=style.BLEU, width=2.5), hovertemplate="%{y:,.0f} €")
+                fig.add_scatter(x=sn["date"], y=sn["apports"], name="Apports nets", mode="lines",
+                                line=dict(shape="hv", dash="dot", color=style.ARDOISE, width=2),
+                                hovertemplate="%{y:,.0f} €")
+                style.habiller(fig, hovermode="x unified")
+                fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=340,
+                                  legend=dict(orientation="h", y=-0.15))
+                fig.update_xaxes(fixedrange=True, hoverformat="%d/%m/%Y")  # pas de zoom tactile
+                fig.update_yaxes(fixedrange=True)
+                st.plotly_chart(fig, config=PLOTLY)
 
-            st.subheader("Performance vs indice")
-            st.caption("Performance pondérée par le temps : neutralise vos versements, base 100.")
-            choix = st.selectbox("Comparer à", list(BENCHMARKS), label_visibility="collapsed")
-            try:  # table « partage » absente (migration non faite) ou base indisponible : pas d'amis
-                amis = db.performances_partagees()
-            except Exception:
-                amis = pd.DataFrame(columns=["pseudo", "date", "twr"])
-            noms = sorted(amis["pseudo"].unique())
-            choisis = st.multiselect("Comparer aux autres utilisateurs", noms, default=noms,
-                                     placeholder="Utilisateurs à afficher",
-                                     label_visibility="collapsed") if noms else []
-            twr = C.calcul_twr(sn)
-            bench = None
-            try:  # le compte demo utilise aussi les cours et historiques Yahoo
-                h = D.historique_cloture(BENCHMARKS[choix], sn["date"].min().strftime("%Y-%m-%d"))
-                bench = h.reindex(h.index.union(twr["date"])).ffill().reindex(twr["date"]).bfill()
-                bench = bench / bench.iloc[0] * 100
-            except Exception:
-                st.caption("Indice indisponible pour le moment.")
-            fig = go.Figure()
-            fig.add_scatter(x=twr["date"], y=twr["twr"], name="Mon PEA", mode="lines")
-            if bench is not None:
-                fig.add_scatter(x=twr["date"], y=bench.to_numpy(), name=choix, mode="lines")
-            perf_amis = {}
-            for p in choisis:
-                s = amis[amis["pseudo"] == p].set_index("date")["twr"]
-                s = s.reindex(s.index.union(twr["date"])).ffill().reindex(twr["date"])  # pas de bfill
-                if s.notna().sum() < 2:
-                    continue  # pas de données sur la période
-                s = s / s.dropna().iloc[0] * 100
-                perf_amis[p] = s.iloc[-1] - 100
-                fig.add_scatter(x=twr["date"], y=s.to_numpy(), name=p, mode="lines",
-                                line=dict(width=1.5), connectgaps=False)
-            fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=300,
-                              legend=dict(orientation="h", y=-0.15))
-            fig.update_xaxes(fixedrange=True)  # pas de zoom tactile
-            fig.update_yaxes(fixedrange=True)
-            st.plotly_chart(fig, config=PLOTLY)
-            resume = f"Mon PEA : **{fmt(twr['twr'].iloc[-1] - 100, 2, True)} %**"
-            if bench is not None:
-                resume += f" · {choix} : **{fmt(bench.iloc[-1] - 100, 2, True)} %**"
-            st.markdown(resume)
-            if perf_amis:
-                st.markdown(" · ".join(f"{p} : **{fmt(v, 2, True)} %**" for p, v in perf_amis.items()))
-                st.caption("Courbes des autres utilisateurs : base 100 au début de la période (ou à leur "
-                           "1er point s'il est plus récent).")
+            with g_indice:
+                st.subheader("Performance vs indice")
+                st.caption("Performance pondérée par le temps : neutralise vos versements, base 100.")
+                choix = st.selectbox("Comparer à", list(BENCHMARKS), label_visibility="collapsed")
+                try:  # table « partage » absente (migration non faite) ou base indisponible : pas d'amis
+                    amis = db.performances_partagees()
+                except Exception:
+                    amis = pd.DataFrame(columns=["pseudo", "date", "twr"])
+                noms = sorted(amis["pseudo"].unique())
+                choisis = st.multiselect("Comparer aux autres utilisateurs", noms, default=noms,
+                                         placeholder="Utilisateurs à afficher",
+                                         label_visibility="collapsed") if noms else []
+                twr = C.calcul_twr(sn)
+                bench = None
+                try:  # le compte demo utilise aussi les cours et historiques Yahoo
+                    h = D.historique_cloture(BENCHMARKS[choix], sn["date"].min().strftime("%Y-%m-%d"))
+                    bench = h.reindex(h.index.union(twr["date"])).ffill().reindex(twr["date"]).bfill()
+                    bench = bench / bench.iloc[0] * 100
+                except Exception:
+                    st.caption("Indice indisponible pour le moment.")
+                fig = go.Figure()
+                fig.add_scatter(x=twr["date"], y=twr["twr"], name="Mon PEA", mode="lines",
+                                line=dict(color=style.BLEU, width=2.5), hovertemplate="%{y:.1f}")
+                if bench is not None:
+                    fig.add_scatter(x=twr["date"], y=bench.to_numpy(), name=choix, mode="lines",
+                                    line=dict(color=style.ARDOISE, width=2), hovertemplate="%{y:.1f}")
+                perf_amis = {}
+                for n, p in enumerate(choisis):
+                    s = amis[amis["pseudo"] == p].set_index("date")["twr"]
+                    s = s.reindex(s.index.union(twr["date"])).ffill().reindex(twr["date"])  # pas de bfill
+                    if s.notna().sum() < 2:
+                        continue  # pas de données sur la période
+                    s = s / s.dropna().iloc[0] * 100
+                    perf_amis[p] = s.iloc[-1] - 100
+                    fig.add_scatter(x=twr["date"], y=s.to_numpy(), name=p, mode="lines",
+                                    line=dict(width=1.5, color=style.COULEURS_AMIS[n % len(style.COULEURS_AMIS)]),
+                                    connectgaps=False, hovertemplate="%{y:.1f}")
+                style.habiller(fig, hovermode="x unified")
+                fig.update_layout(margin=dict(l=0, r=0, t=10, b=0), height=340,
+                                  legend=dict(orientation="h", y=-0.15))
+                fig.update_xaxes(fixedrange=True, hoverformat="%d/%m/%Y")  # pas de zoom tactile
+                fig.update_yaxes(fixedrange=True)
+                st.plotly_chart(fig, config=PLOTLY)
+                resume = f"Mon PEA : **{fmt(twr['twr'].iloc[-1] - 100, 2, True)} %**"
+                if bench is not None:
+                    resume += f" · {choix} : **{fmt(bench.iloc[-1] - 100, 2, True)} %**"
+                st.markdown(resume)
+                if perf_amis:
+                    st.markdown(" · ".join(f"{p} : **{fmt(v, 2, True)} %**" for p, v in perf_amis.items()))
+                    st.caption("Courbes des autres utilisateurs : base 100 au début de la période (ou à leur "
+                               "1er point s'il est plus récent).")
 
     if not auth.est_demo():
         bloc_partage()
@@ -1647,7 +1724,8 @@ with tab_wl:
     onglet_watchlist()
 
 with tab_saisie:
-    onglet_saisie()
+    with st.container(key="saisie"):  # largeur limitée par le CSS : formulaires lisibles sur grand écran
+        onglet_saisie()
 
 memoriser_cours_et_snapshot()  # après l'affichage : n'allonge pas le temps avant la page
 

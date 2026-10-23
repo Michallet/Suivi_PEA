@@ -1,11 +1,11 @@
 # 📈 Suivi PEA
 
-Application **Streamlit mobile-first** de suivi d'un PEA français (actions et ETF européens) : positions, PRM,
+Application **Streamlit mobile-first et adaptative** (téléphone, tablette, PC) de suivi d'un PEA français (actions et ETF européens) : positions, PRM,
 plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs techniques, analyse IA (Gemini).
 
 | | |
 |---|---|
-| Interface | Streamlit (`layout="centered"`, cartes plutôt que tableaux, pas de zoom tactile) |
+| Interface | Streamlit (`layout="wide"` + CSS de `style.py` : plein écran sur mobile, contenu centré (1 320 px max) et cartes en grille sur tablette/PC ; cartes plutôt que tableaux, pas de zoom tactile) |
 | Base | Supabase (PostgreSQL), clé `service_role` côté serveur uniquement |
 | Cours et fondamentaux | Yahoo Finance (`yfinance`) |
 | IA (facultative) | API Gemini, appels HTTP directs (`requests`) |
@@ -20,7 +20,8 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 ## Règles non négociables
 
 - **100 % gratuit** : aucune dépendance ni service payant.
-- **Mobile-first** : cartes, pas de tableaux larges, `fixedrange` sur les graphiques Plotly.
+- **Mobile-first, adaptatif** : cartes, pas de tableaux larges, `fixedrange` sur les graphiques Plotly. Toute mise en page
+  « grand écran » (colonnes, grilles) doit se replier en une colonne sur téléphone.
 - **Aucun secret dans le dépôt** (tout passe par `st.secrets`) et **aucune donnée réelle** : le dépôt est public.
   Les tests et exemples n'utilisent que des données fictives.
 - **Cloisonnement par compte** : toute lecture/écriture Supabase est filtrée par `user_id` dans `db.py`.
@@ -35,7 +36,8 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 
 | Fichier | Rôle |
 |---|---|
-| `app.py` | Interface : 5 onglets (Portefeuille · Historique · Projet · Watchlist · Saisie), cartes de lignes, blocs IA/chat, import par captures |
+| `app.py` | Interface : 5 onglets (Portefeuille · Historique · Projet · Watchlist · Saisie), cartes de lignes, blocs IA/chat (dans un dépliant), import par captures |
+| `style.py` | Présentation : CSS adaptatif (largeur, grilles de cartes, bandeau démo cliquable), palette et habillage communs des graphiques Plotly (police, nombres français, infobulles) |
 | `calculs.py` | Calculs purs : positions/PRM, plus-values, cash, synthèse, TWR, reconstitution d'historique, scénarios, répartitions |
 | `technique.py` | Indicateurs techniques purs (MM, RSI, stochastique, Bollinger) et note /10 |
 | `concurrents.py` | Concurrent d'un titre : suggestion IA validée, saisie manuelle, comparaison des multiples (réseau injecté) |
@@ -44,7 +46,7 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 | `prompts.md` | Prompts éditables (sections `## analyse`, `## scenario`, `## chat`, `## capture`, `## concurrent`) ; section absente = défaut du code |
 | `donnees.py` | Yahoo Finance : cours, fondamentaux, bougies, résolution ISIN → ticker, caches par titre |
 | `db.py` | Supabase : lecture paginée en cache, écritures, upserts, préchargement parallèle |
-| `auth.py` | Connexion (comptes lus dans `st.secrets`), limitation des essais, nettoyage de l'état au changement de compte |
+| `auth.py` | Connexion (comptes lus dans `st.secrets`), connexion automatique au compte demo (interrupteur), limitation des essais, nettoyage de l'état au changement de compte |
 | `schema.py` | Colonnes métier de chaque table, ordre de tri, colonnes numériques |
 | `schema.sql` | Schéma Supabase complet (idempotent, RLS activée) |
 | `seed_demo.sql` | Portefeuille fictif du compte `demo` (à exécuter **une seule fois**) |
@@ -138,6 +140,7 @@ SUPABASE_KEY = "clé service_role"      # secret serveur uniquement, jamais la c
 GEMINI_API_KEY = ""                    # facultatif ; inactif pour le compte demo
 # GEMINI_MODEL = "gemini-3.6-flash"    # facultatif
 # DEBUG_PERF = true                    # facultatif : affiche les temps (base / cours / fondamentaux / calculs)
+# AUTO_CONNEXION_DEMO = false          # facultatif : surcharge auth.CONNEXION_DEMO_AUTO (voir « Connexion par défaut »)
 
 [users.demo]
 password = "demo"
@@ -152,6 +155,13 @@ Autres comptes : même modèle `[users.identifiant]` (`password`, `demo = false`
 secrets Streamlit, pas dans Supabase. Les essais de connexion des comptes privés sont limités (8 par 15 min) ; le
 compte `demo` est public par conception. L'ancien secret `APP_PASSWORD` est encore lu comme mot de passe de `theo`
 si `[users.theo]` est absent.
+
+**Connexion par défaut (mode démo)** : à l'ouverture, l'app se connecte seule au compte `demo` (pratique pour les
+tests). L'interrupteur est le booléen `CONNEXION_DEMO_AUTO` en tête de `auth.py` (`True` = démo d'office, `False` =
+écran de connexion comme avant) ; le secret facultatif `AUTO_CONNEXION_DEMO` prime sur lui, sans toucher au code. Pour
+passer sur un compte personnel : cliquer sur le **verrou 🔒** (en-tête de chaque page) ou sur le **bandeau « Mode démo »** ;
+cela ouvre le formulaire de connexion (démo préremplie) sans reconnecter la démo d'office, jusqu'à la prochaine connexion
+réussie. Se déconnecter d'un compte personnel avec le verrou fait de même. Le cloisonnement par compte est inchangé.
 
 **Base** : exécuter `schema.sql` dans le SQL Editor de Supabase (idempotent, peut être rejoué), puis `seed_demo.sql`
 **une seule fois** pour le compte demo. Le compte `demo/demo` est partagé et modifiable par tous ses visiteurs :
@@ -193,8 +203,22 @@ dépendent pas de Streamlit et se testent seuls (réseau à simuler).
 
 - Non vérifié en conditions réelles dans les dernières livraisons : lecture d'une vraie capture par Gemini, qualité
   des suggestions de concurrent, rendu mobile et comportement tactile des fragments.
+- Mise en page adaptative, nouveaux graphiques et bandeau démo cliquable : livrés **sans test visuel** (le CSS de
+  `style.py` cible des attributs `data-testid` / classes `st-key-*` de Streamlit, qui peuvent changer d'une version à
+  l'autre ; si une grille ne s'applique plus, les cartes retombent simplement sur une colonne).
 - Les données Yahoo sont indicatives (fondamentaux parfois absents, surtout pour les ETF).
 - Le compte `demo` est modifiable par tous sans plafond d'écriture.
+
+## Interface adaptative et graphiques
+
+- `style.appliquer()` (CSS) est appelé au début d'`app.py`. Les listes de cartes sont dans des `st.container(key="grille_…")`
+  mis en grille par le CSS (`auto-fill`, 340 px mini) ; la saisie (`key="saisie"`) et le formulaire de connexion
+  (`key="connexion"`) ont une largeur limitée. Les graphiques côte à côte utilisent `st.columns`, qui s'empilent sur mobile.
+- Le bandeau IA (Analyse & Chat) est un `st.expander` **replié par défaut** (Portefeuille et Projet) ; une fois déplié,
+  analyse et chat sont côte à côte sur grand écran.
+- Tous les graphiques passent par `style.habiller(fig)` : palette douce commune (`style.PALETTE`), police système moderne,
+  nombres à la française, infobulles arrondies (€ sans décimale, % à 1 décimale). Un nouveau graphique doit en faire autant
+  et définir un `hovertemplate` arrondi.
 
 ## Pistes
 
