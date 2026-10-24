@@ -1,7 +1,7 @@
 """Suivi PEA — interface Streamlit mobile-first multi-utilisateur.
 
-Les comptes sont définis dans .streamlit/secrets.toml. Le compte demo partage un jeu de données
-fictif persistant et n'a pas accès aux fonctionnalités IA.
+Les comptes sont définis dans .streamlit/secrets.toml. Le compte demo lit un jeu de données fictif
+en base, en lecture seule (ses modifications restent dans la session) et n'a pas accès à l'IA.
 """
 from __future__ import annotations
 
@@ -14,21 +14,33 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-import auth
-import calculs as C
-import concurrents as CONC
-import db
-import donnees as D
-import import_ecran as IE
-import llm
-import style
-import technique as TECH
-from schema import SCHEMA
+import logging
+
+from pea import config
+from pea.data import marche as D
+from pea.data import repo as db
+from pea.data.schema import TABLES_COMPTE
+from pea.services import auth, partage, quotas, suivi
+from pea.domain import calculs as C
+from pea.domain import concurrents as CONC
+from pea.domain import import_ecran as IE
+from pea.domain import technique as TECH
+from pea.domain.fondamentaux import GRANDEURS, est_etf, lignes_fondamentaux, valeur_grandeur
+from pea.domain.formats import (cellule as _cellule, court as _court, fmt, formater_gros_nombre, lien_actualites,
+                                pastille, sans_parentheses)
+from pea.domain.textes import echapper_markdown as esc
+from pea.domain.textes import nettoyer_sortie_ia, sur_pour_graphique
+from pea.services import ia as llm
+from pea.ui import style
+from pea.data.schema import SCHEMA
+
+journal = logging.getLogger("pea.app")
 
 # layout="wide" : plein écran sur mobile comme avant ; sur tablette / PC, style.py centre le contenu
 # (1 320 px max), met les listes de cartes en grille et les graphiques côte à côte.
 st.set_page_config(page_title="Suivi PEA", page_icon="📈", layout="wide")
 style.appliquer()
+db.initialiser()  # client Supabase créé dans le fil principal (avant tout fil d'arrière-plan)
 CHRONO = {"debut": time.perf_counter()}  # affiché en bas de page si le secret DEBUG_PERF est activé
 
 
@@ -38,9 +50,8 @@ def jalon(nom: str) -> None:
 
 
 
-SEUIL_CONCENTRATION = 25.0  # % des titres au-delà duquel on alerte
-BENCHMARKS = {"MSCI World (CW8)": "CW8.PA", "CAC 40": "^FCHI", "Euro Stoxx 50": "^STOXX50E"}
-VERT, ROUGE = "#16a34a", "#dc2626"
+SEUIL_CONCENTRATION = config.SEUIL_CONCENTRATION
+BENCHMARKS = config.BENCHMARKS
 PARIS = ZoneInfo("Europe/Paris")
 PLOTLY = {"displayModeBar": False, "scrollZoom": False, "doubleClick": False}
 NOUVEL_ISIN = "➕ Nouvel ISIN…"
@@ -78,25 +89,6 @@ CFG = {
 # --------------------------------------------------------------------------- #
 def maintenant() -> datetime:
     return datetime.now(PARIS)
-
-
-def fmt(x, dec: int = 2, signe: bool = False) -> str:
-    """Nombre au format français : 12 345,67 (signe optionnel)."""
-    if x is None or pd.isna(x):
-        return "N/A"
-    s = f"{x:+,.{dec}f}" if signe else f"{x:,.{dec}f}"
-    return s.replace(",", "\u202f").replace(".", ",")
-
-
-def pastille(v: float, texte: str) -> str:
-    return f"<span style='color:{VERT if v >= 0 else ROUGE}'>{texte}</span>"
-
-
-def sans_parentheses(series: pd.Series) -> pd.Series:
-    """Noms épurés pour les axes : retrait de TOUS les groupes entre parenthèses
-    (souvent au milieu des noms d'ETF, ex. « Amundi PEA Monde (MSCI World) UCITS ETF »)."""
-    return (series.astype(str).str.replace(r"\s*\([^)]*\)", "", regex=True)
-            .str.replace(r"\s{2,}", " ", regex=True).str.strip())
 
 
 def flash(msg: str) -> None:
@@ -153,10 +145,8 @@ with st.container(key="entete"):
     t1.title("📈 Mon PEA")
     t1.caption(f"Compte : {auth.utilisateur()}")
     if t2.button("🔄", help="Actualiser les cours"):
-        D.cours_batch.clear()
-        D.fondamentaux_batch.clear()
-        D.ohlc_batch.clear()
-        db.rafraichir()
+        db.invalider_compte()  # uniquement le compte courant ; le marché suit sa propre fraîcheur
+        st.session_state["_actualiser_cours"] = True
         st.rerun()
     # Le verrou fait quitter le compte courant ; en démo, il ouvre le formulaire de connexion.
     if t3.button("🔒", key="btn_verrou",
@@ -165,19 +155,20 @@ with st.container(key="entete"):
         st.rerun()
 if mode_demo:
     # Le bandeau est cliquable : même effet que le verrou.
-    if st.button("🧪 **Mode démo** : portefeuille fictif partagé · touchez ici pour vous connecter",
+    if st.button("🧪 **Mode démo** : portefeuille fictif · touchez ici pour vous connecter",
                  key="btn_bandeau_demo",
-                 help="Les ajouts et suppressions sont visibles par tous les visiteurs du compte demo. "
-                      "Les cours de marché peuvent être réels. Les fonctions IA sont désactivées."):
+                 help="Vos ajouts et suppressions restent dans votre session : rien n'est enregistré en base "
+                      "et les autres visiteurs ne les voient pas. Les cours de marché peuvent être réels. "
+                      "Les fonctions IA sont désactivées."):
         auth.deconnecter()
         st.rerun()
-    st.caption("Les ajouts et suppressions sont visibles de tous les visiteurs de la démo : "
-               "n'y saisissez aucune donnée personnelle. IA désactivée.")
+    st.caption("Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. "
+               "IA désactivée.")
 
 # --------------------------------------------------------------------------- #
 # Chargement des données
 # --------------------------------------------------------------------------- #
-db.precharger(list(SCHEMA))  # toutes les tables en parallèle (puis lectures servies par le cache)
+db.precharger(TABLES_COMPTE)  # un seul aller-retour (fonction SQL) ou lectures parallèles ; rien si cache frais
 try:
     trans, div, vers = db.lire("transactions"), db.lire("dividendes"), db.lire("versements")
     tick, sect, snaps = db.lire("tickers"), db.lire("secteurs"), db.lire("snapshots")
@@ -202,11 +193,10 @@ def lire_sur(table: str) -> pd.DataFrame:
 wl, scen = lire_sur("watchlist"), lire_sur("scenarios")
 scen_tr, analyses = lire_sur("scenario_trades"), lire_sur("analyses_ia")
 analyses_scen = lire_sur("analyses_scen")
-chat_log = lire_sur("chat_log")
 jalon("base")
 if tables_manquantes:
     st.warning("Tables manquantes : " + ", ".join(tables_manquantes)
-               + ". Exécutez la version à jour de schema.sql dans Supabase.")
+               + ". Exécutez la version à jour de sql/schema.sql dans Supabase.")
 
 tmap = (tick.set_index("isin") if not tick.empty
         else pd.DataFrame(columns=["ticker", "nom", "dernier_prix", "dernier_prix_at",
@@ -231,6 +221,9 @@ def charger_cours(isins: list[str]):
     """Cours (live > dernier connu > prix de revient) pour une liste d'ISIN."""
     connus = [i for i in isins if i in tmap.index]
     tickers = tuple(dict.fromkeys(tmap.loc[i, "ticker"] for i in connus))
+    if st.session_state.pop("_actualiser_cours", False):
+        D.actualiser_cours(tickers)
+    D.prechauffer(tickers)  # cours + fondamentaux partagés (marche_cache) en une seule requête
     marche, horo = D.cours_batch(tickers) if tickers else ({}, maintenant())
     lignes, maj = [], []
     for isin in isins:
@@ -240,9 +233,11 @@ def charger_cours(isins: list[str]):
         dernier = None if dernier is None or pd.isna(dernier) else float(dernier)
         m = marche.get(ticker, {})
         prix, prev, statut = m.get("prix"), m.get("prev"), "live"
-        if prix is None:
+        if prix is not None and m.get("age_s", 0) > 2 * config.TTL_COURS_S:
+            prev, statut = None, "obsolète"  # Yahoo injoignable : dernier cours connu du cache partagé
+        elif prix is None:
             prix, statut = dernier, ("obsolète" if dernier else "estimé")
-        elif connu and (dernier is None or abs(dernier - prix) > 1e-9):
+        if statut == "live" and connu and (dernier is None or abs(dernier - prix) > 1e-9):
             maj.append({"isin": isin, "ticker": ticker, "nom": nom_de(tmap, isin),
                         "dernier_prix": prix, "dernier_prix_at": maintenant().isoformat()})
         lignes.append({"isin": isin, "ticker": ticker, "nom": nom_de(tmap, isin) if connu else None,
@@ -281,20 +276,11 @@ jalon("calculs")
 
 
 def memoriser_cours_et_snapshot() -> None:
-    """Mémorise les derniers cours et le point de courbe du jour. Appelée en FIN de script : la page
-    s'affiche d'abord, les écritures Supabase (≈ 2 allers-retours) ne retardent plus l'affichage."""
-    try:
-        if maj_prix:
-            db.upsert("tickers", maj_prix, "isin")
-        estimes = (not pos.empty) and (pos["statut"] == "estimé").any()
-        if not trans.empty and not estimes and maintenant().weekday() < 5:
-            auj = pd.Timestamp(maintenant().date())
-            ligne = snaps[snaps["date"] == auj]
-            nouveau = {"valeur": round(s["valeur_totale"], 2), "apports": round(s["apports"], 2)}
-            if ligne.empty or any(abs(ligne.iloc[0][k] - v) > 0.01 for k, v in nouveau.items()):
-                db.upsert("snapshots", [{"date": auj, **nouveau}], "date")
-    except Exception:
-        pass  # un échec d'écriture ne doit jamais bloquer l'affichage
+    """Mémorise les derniers cours et le point de courbe du jour, en FIN de script (après l'affichage).
+    Écritures limitées par compte (voir pea.services.suivi) ; jamais pour la démo."""
+    estimes = (not pos.empty) and (pos["statut"] == "estimé").any()
+    suivi.memoriser(maj_prix, snaps, pd.Timestamp(maintenant().date()), s["valeur_totale"], s["apports"],
+                    autorise_snapshot=not trans.empty and not estimes and maintenant().weekday() < 5)
 
 
 manquants = sorted(set(trans["isin"]) - set(tmap.index))
@@ -322,44 +308,6 @@ def choisir_isin(label: str, options: list[str], cle: str, nouveau: bool = True)
 # --------------------------------------------------------------------------- #
 # Fiches de lignes communes à Portefeuille, Projet et Watchlist
 # --------------------------------------------------------------------------- #
-def url_google_actualites(nom: str) -> str:
-    """Construit un lien Google Actualités avec une recherche « nom bourse ».
-
-    Aucun lien n'est stocké en base : il est calculé à l'affichage à partir du nom du titre.
-    """
-    requete = quote_plus(f"{nom.strip()} bourse")
-    return f"https://news.google.com/search?q={requete}&hl=fr&gl=FR&ceid=FR%3Afr"
-
-
-def lien_actualites(nom: str) -> str:
-    """Lien Markdown vers la recherche Google Actualités du titre."""
-    if not isinstance(nom, str) or not nom.strip():
-        return ""
-    return f"  \n[📰 Google Actualités]({url_google_actualites(nom)})"
-
-
-def _present(x) -> bool:
-    return x is not None and not pd.isna(x) and x != 0
-
-
-def lignes_fondamentaux(f: dict) -> list[tuple[str, str]]:
-    """Fondamentaux Yahoo disponibles, dans le même ordre partout ; les valeurs absentes sont omises."""
-    f = f or {}
-    defs = [
-        ("PER", "per", lambda x: fmt(x, 1)),
-        ("PER prévisionnel", "per_prev", lambda x: fmt(x, 1)),
-        ("Chiffre d'affaires", "ca", C.formater_gros_nombre),
-        ("Bénéfice net", "net_income", C.formater_gros_nombre),
-        ("EBITDA", "ebitda", C.formater_gros_nombre),
-        ("Capitalisation", "capi", C.formater_gros_nombre),
-        ("Valeur d'entreprise", "ev", C.formater_gros_nombre),
-        ("EV/EBITDA", "ev_ebitda", lambda x: f"{fmt(x, 1)}x"),
-        ("Actifs sous gestion", "net_assets", C.formater_gros_nombre),
-        ("Frais annuels", "expense_ratio", lambda x: f"{fmt(x, 2)} %"),
-    ]
-    return [(lbl, fn(f[k])) for lbl, k, fn in defs if _present(f.get(k))]
-
-
 VUES = ("Fondamentaux", "Techniques")
 TXT_AVERTISSEMENT_TECH = ("Note = moyenne pondérée des 4 indicateurs ; ≥ 6 acheter, ≤ 4 vendre. "
                           "Signal indicatif, pas un conseil en investissement.")
@@ -392,17 +340,6 @@ def afficher_technique(res: dict | None) -> None:
 
 def _puces(details: list) -> str:
     return "\n".join(f"- {k} : **{v}**" for k, v in details)
-
-
-# -- Concurrent (un seul par titre, stocké dans tickers.concurrent_*) ------------------------------
-def est_etf(nom, f: dict | None) -> bool:
-    """Un ETF n'a pas de concurrent à comparer : détecté par le nom, ou par des actifs sous gestion sans CA."""
-    n = str(nom or "").upper()
-    if "ETF" in n or "UCITS" in n:
-        return True
-    f = f or {}
-    return bool((_present(f.get("net_assets")) or _present(f.get("expense_ratio")))
-                and not _present(f.get("ca")) and not _present(f.get("per")) and not _present(f.get("capi")))
 
 
 def concurrent_de(isin: str) -> dict | None:
@@ -442,39 +379,29 @@ def enregistrer_concurrent(isin: str, conc: dict | None) -> str | None:
 
 def suggerer_a_la_creation(isin: str, ticker: str, nom: str) -> None:
     """Une seule suggestion IA, à la création du titre. Ne bloque jamais l'enregistrement."""
-    cle_api = auth.secret("GEMINI_API_KEY")
+    cle_api = config.cle_gemini()
     if mode_demo or not cle_api:
         return
     try:
         with st.spinner("Recherche d'un concurrent…"):
-            f = D.fondamentaux_batch((ticker,)).get(ticker, {})
+            f = D.fondamentaux_batch((ticker,), attente=10).get(ticker, {})
             if est_etf(nom, f):
                 return
-            conc = CONC.suggerer(nom, isin, f, cle_api, auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT,
-                                 resoudre_concurrent)
+            quotas.verifier("concurrent")
+            conc = llm.suggerer(nom, isin, f, cle_api, config.modele_gemini(), resoudre_concurrent)
+            quotas.enregistrer("concurrent")
         if conc and enregistrer_concurrent(isin, conc) is None:
             st.session_state["flash_conc"] = (f"Concurrent suggéré : {conc['nom']} "
                                               "(modifiable dans Détails › Fondamentaux)")
-    except Exception:
-        pass  # la suggestion est un confort : toute erreur est ignorée
-
-
-def _court(nom: str, n: int = 14) -> str:
-    nom = str(sans_parentheses(pd.Series([nom])).iloc[0])
-    return nom if len(nom) <= n else nom[:n - 1] + "…"
-
-
-def _cellule(v, unite: str) -> str:
-    if v is None:
-        return "—"
-    return f"{fmt(v, 1)}x" if unite == "x" else f"{fmt(v, 1)} %" if unite == "%" else C.formater_gros_nombre(v)
+    except Exception as e:  # la suggestion est un confort : l'erreur est journalisée, jamais affichée
+        journal.info("Suggestion de concurrent abandonnée (%s)", type(e).__name__)
 
 
 def afficher_comparaison(nom: str, conc: dict, lignes: list) -> None:
     if not lignes:
         st.caption(f"Fondamentaux indisponibles pour comparer avec {conc['nom']}.")
         return
-    tab = [f"| | {_court(nom)} | {_court(conc['nom'])} |", "|---|--:|--:|"]
+    tab = [f"| | {esc(_court(nom))} | {esc(_court(conc['nom']))} |", "|---|--:|--:|"]
     tab += [f"| {l['label']} | {_cellule(l['vt'], l['unite'])} | {_cellule(l['vc'], l['unite'])} |"
             for l in lignes]
     st.markdown("\n".join(tab))
@@ -490,13 +417,13 @@ def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str) -> None:
     comparer = False
     if conc:
         c1, c2 = st.columns([4, 1])
-        comparer = c1.toggle(f"⚖️ Comparer à {conc['nom']}", key=f"cmp_{k}")
+        comparer = c1.toggle(f"⚖️ Comparer à {esc(conc['nom'])}", key=f"cmp_{k}")
         edition = c2.toggle("✏️", key=f"cedit_{k}", help="Modifier ou retirer le concurrent")
     else:
         edition = st.toggle("➕ Ajouter un concurrent", key=f"cedit_{k}")
 
     if comparer:  # les fondamentaux du concurrent ne sont téléchargés que sur demande
-        fc = D.fondamentaux_batch((conc["ticker"],)).get(conc["ticker"], {})
+        fc = D.fondamentaux_batch((conc["ticker"],), attente=10).get(conc["ticker"], {})
         afficher_comparaison(nom, conc, CONC.lignes_comparaison(f, fc))
     if not edition:
         return
@@ -504,15 +431,14 @@ def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str) -> None:
     sug = st.session_state.pop(f"csug_{k}", None)  # suggestion IA : à injecter AVANT de créer les champs
     if sug:
         st.session_state[f"cisin_{k}"], st.session_state[f"ctk_{k}"] = sug["isin"], sug["ticker"]
-        st.info(f"💡 Suggestion IA : **{sug['nom']}**" + (f" — {sug['raison']}" if sug["raison"] else "")
+        st.info(f"💡 Suggestion IA : **{esc(sug['nom'])}**" + (f" — {esc(sug['raison'])}" if sug["raison"] else "")
                 + ". À enregistrer pour la conserver.")
     st.session_state.setdefault(f"cisin_{k}", (conc or {}).get("isin", ""))
     st.session_state.setdefault(f"ctk_{k}", (conc or {}).get("ticker", ""))
     isin_c = st.text_input("ISIN du concurrent", key=f"cisin_{k}", placeholder="DE0007236101")
     tk_c = st.text_input("Ticker Yahoo (facultatif)", key=f"ctk_{k}", placeholder="ex : SIE.DE")
-    cle_api = auth.secret("GEMINI_API_KEY")
-    n_ia = sum(1 for d in st.session_state.get("conc_appels", []) if d == maintenant().date())
-    ia_ok = bool(cle_api) and not mode_demo and n_ia < CONC.MAX_SUGGESTIONS_PAR_JOUR
+    cle_api = config.cle_gemini()
+    ia_ok = bool(cle_api) and not mode_demo and not quotas.limite_atteinte("concurrent")
     b1, b2, b3 = st.columns(3)
     if b1.button("💾 Enregistrer", key=f"csave_{k}", type="primary"):
         c, err = CONC.preparer_concurrent(isin_c, tk_c, isin, resoudre_concurrent)
@@ -525,13 +451,13 @@ def bloc_concurrent(isin: str, nom: str, f: dict | None, ctx: str) -> None:
     if b2.button("💡 IA", key=f"csugbtn_{k}", disabled=not ia_ok,
                  help="Suggestion par l'IA" if ia_ok else "IA indisponible (compte démo, clé absente ou limite atteinte)"):
         try:
+            quotas.verifier("concurrent")
             with st.spinner("Recherche d'un concurrent…"):
-                prop = CONC.suggerer(nom, isin, f, cle_api, auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT,
-                                     resoudre_concurrent)
-        except llm.ErreurIA as e:
+                prop = llm.suggerer(nom, isin, f, cle_api, config.modele_gemini(), resoudre_concurrent)
+        except (llm.ErreurIA, quotas.QuotaDepasse) as e:
             st.error(str(e))
         else:
-            st.session_state["conc_appels"] = st.session_state.get("conc_appels", []) + [maintenant().date()]
+            quotas.enregistrer("concurrent")
             if prop:
                 st.session_state[f"csug_{k}"] = prop
                 st.rerun()
@@ -556,7 +482,7 @@ def carte_ligne(r, ctx: str, vue: str = "Fondamentaux", techs: dict | None = Non
     resume_t = TECH.resume(res_t)
     with st.container(border=True):
         g, d = st.columns([3, 2])
-        g.markdown(f"**{r.nom}**{badge}  \n{r.secteur} · {fmt(r.poids_pct, 0)} %"
+        g.markdown(f"**{esc(r.nom)}**{badge}  \n{esc(r.secteur)} · {fmt(r.poids_pct, 0)} %"
                    + (f"  \nTechnique : {resume_t}" if resume_t else "") + lien_actualites(r.nom))
         d.markdown(f"<div style='text-align:right'><b>{fmt(r.valeur)} €</b><br>"
                    f"{jour}<br>{total}</div>", unsafe_allow_html=True)
@@ -582,16 +508,16 @@ def carte_ligne(r, ctx: str, vue: str = "Fondamentaux", techs: dict | None = Non
 def afficher_analyse(res: dict, quand, perime: bool, scenario: bool = False) -> None:
     c1, c2 = st.columns([1, 2])
     c1.metric("Note globale", f"{llm.note_globale(res):.1f}/10")
-    c2.markdown(f"_{res['conclusion']}_")
+    c2.markdown(f"_{nettoyer_sortie_ia(res['conclusion'])}_")
     for c in res["criteres"]:
         st.markdown(f"**{c['label']}** · {c['note']}/10")
         st.progress(c["note"] / 10)
-        st.caption(c["synthese"])
+        st.caption(nettoyer_sortie_ia(c["synthese"]))
         if scenario:  # avantages / inconvénients du scénario par rapport à l'actuel
             for a in c.get("avantages", []):
-                st.markdown(f"🟢 {a}")
+                st.markdown(f"🟢 {nettoyer_sortie_ia(a)}")
             for i in c.get("inconvenients", []):
-                st.markdown(f"🔴 {i}")
+                st.markdown(f"🔴 {nettoyer_sortie_ia(i)}")
     suite = " · ⚠️ scénario modifié depuis" if (perime and scenario) else \
         (" · ⚠️ portefeuille modifié depuis" if perime else "")
     st.caption(f"Analysé le {quand:%d/%m/%Y à %H:%M} · {res.get('modele', '')}{suite}")
@@ -612,15 +538,11 @@ def bloc_ia(cadre: bool = True) -> None:
             st.caption("Aucune ligne à analyser.")
             return
 
-        cle_api = auth.secret("GEMINI_API_KEY")
-        modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+        cle_api = config.cle_gemini()
+        modele = config.modele_gemini()
         per_isin = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
         texte, empreinte = llm.construire_contexte(pos, s["cash"], per_isin, modele)
-
-        jours = (pd.to_datetime(analyses["cree_le"], utc=True, errors="coerce").dt.tz_convert(PARIS).dt.date
-                 if not analyses.empty else pd.Series(dtype=object))
-        n_auj = int((jours == maintenant().date()).sum())
-        limite = n_auj >= llm.MAX_APPELS_PAR_JOUR
+        limite = quotas.limite_atteinte("analyse")
         a_jour = derniere is not None and derniere["empreinte"] == empreinte
 
         label = "✨ Relancer l'analyse" if a_jour else "✨ Analyser mon portefeuille"
@@ -628,17 +550,19 @@ def bloc_ia(cadre: bool = True) -> None:
         if not cle_api:
             st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse.")
         elif limite:
-            st.caption(f"Limite de {llm.MAX_APPELS_PAR_JOUR} analyses par jour atteinte.")
+            st.caption(quotas.message_limite("analyse"))
         else:
             st.caption("Envoie à Gemini uniquement les poids en % (aucun montant en €).")
 
         if clic:
             try:
+                quotas.verifier("analyse")
                 with st.spinner("Analyse en cours…"):
                     res = llm.analyser(texte, cle_api, modele)
-            except llm.ErreurIA as e:
+            except (llm.ErreurIA, quotas.QuotaDepasse) as e:
                 st.error(str(e))
             else:
+                quotas.enregistrer("analyse")
                 db.inserer("analyses_ia", {"modele": modele, "empreinte": empreinte, "resultat": res})
                 flash("Analyse enregistrée ✨")
                 st.rerun()
@@ -665,21 +589,13 @@ def bloc_ia_scenario(sid: int, pos_p: pd.DataFrame, cash_p: float,
         sel = analyses_scen[analyses_scen["scenario_id"] == sid]
         derniere = None if sel.empty else sel.sort_values("id").iloc[-1]
 
-        cle_api = auth.secret("GEMINI_API_KEY")
-        modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+        cle_api = config.cle_gemini()
+        modele = config.modele_gemini()
         per_p = {i: fonds.get(t, {}).get("per") for i, t in zip(pos_p["isin"], pos_p["ticker"])}
         per_a = {i: fonds.get(t, {}).get("per") for i, t in zip(pos["isin"], pos["ticker"])}
         texte, empreinte = llm.construire_contexte_scenario(
             pos_p, cash_p, per_p, pos, s["cash"], per_a, modele, sid, operations, versement)
-
-        # quota commun : analyses du portefeuille + des scénarios
-        n_auj = 0
-        for table in (analyses, analyses_scen):
-            if not table.empty:
-                jours = (pd.to_datetime(table["cree_le"], utc=True, errors="coerce")
-                         .dt.tz_convert(PARIS).dt.date)
-                n_auj += int((jours == maintenant().date()).sum())
-        limite = n_auj >= llm.MAX_APPELS_PAR_JOUR
+        limite = quotas.limite_atteinte("analyse")  # quota commun : portefeuille + scénarios
         a_jour = derniere is not None and derniere["empreinte"] == empreinte
 
         label = "✨ Relancer l'analyse" if a_jour else "✨ Analyser ce scénario"
@@ -687,17 +603,19 @@ def bloc_ia_scenario(sid: int, pos_p: pd.DataFrame, cash_p: float,
         if not cle_api:
             st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse.")
         elif limite:
-            st.caption(f"Limite de {llm.MAX_APPELS_PAR_JOUR} analyses par jour atteinte.")
+            st.caption(quotas.message_limite("analyse"))
         else:
             st.caption("Envoie à Gemini uniquement les poids en % (aucun montant en €).")
 
         if clic:
             try:
+                quotas.verifier("analyse")
                 with st.spinner("Analyse en cours…"):
                     res = llm.analyser(texte, cle_api, modele, scenario=True)
-            except llm.ErreurIA as e:
+            except (llm.ErreurIA, quotas.QuotaDepasse) as e:
                 st.error(str(e))
             else:
+                quotas.enregistrer("analyse")
                 db.inserer("analyses_scen", {"scenario_id": sid, "modele": modele,
                                              "empreinte": empreinte, "resultat": res})
                 flash("Analyse du scénario enregistrée ✨")
@@ -714,8 +632,8 @@ def fondamentaux_block(p: pd.DataFrame) -> str:
     for r in p.sort_values("valeur", ascending=False).itertuples():
         f = fonds.get(r.ticker, {})
         lignes.append(f"- {r.nom} | {r.secteur} | poids {r.poids_pct:.1f} % des titres | "
-                      f"PER {fmt(f.get('per'), 1)} | cap. {C.formater_gros_nombre(f.get('capi'))} | "
-                      f"CA {C.formater_gros_nombre(f.get('ca'))} | dividendes perçus {fmt(r.dividendes)} €")
+                      f"PER {fmt(f.get('per'), 1)} | cap. {formater_gros_nombre(f.get('capi'))} | "
+                      f"CA {formater_gros_nombre(f.get('ca'))} | dividendes perçus {fmt(r.dividendes)} €")
     return "\n".join(lignes)
 
 
@@ -770,8 +688,8 @@ def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
         if pos.empty:
             st.caption("Aucune ligne dans le portefeuille.")
             return
-        cle_api = auth.secret("GEMINI_API_KEY")
-        modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+        cle_api = config.cle_gemini()
+        modele = config.modele_gemini()
         if not cle_api:
             st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer le chat.")
             return
@@ -780,20 +698,14 @@ def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
             st.session_state[cle_session] = []
         for m in st.session_state[cle_session]:
             with st.chat_message(m["role"]):
-                st.markdown(m["content"])
+                st.markdown(nettoyer_sortie_ia(m["content"]) if m["role"] == "model" else esc(m["content"]))
 
         if st.session_state[cle_session] and st.button("🧹 Effacer la conversation", key=cle_session + "_reset"):
             st.session_state[cle_session] = []
             st.rerun()
 
-        if not chat_log.empty:
-            jours = (pd.to_datetime(chat_log["cree_le"], utc=True, errors="coerce")
-                     .dt.tz_convert(PARIS).dt.date)
-            limite = int((jours == maintenant().date()).sum()) >= llm.MAX_CHAT_PAR_JOUR
-        else:
-            limite = False
-        if limite:
-            st.caption(f"Limite de {llm.MAX_CHAT_PAR_JOUR} messages par jour atteinte.")
+        if quotas.limite_atteinte("chat"):
+            st.caption(quotas.message_limite("chat"))
             return
 
         # clé propre à chaque conversation : bloc_chat() est appelé 2 fois par page (Portefeuille + Projet)
@@ -801,15 +713,16 @@ def bloc_chat(scenario: bool = False, sid=None, pos_p=None, cash_p: float = 0.0,
         if question:
             ctx = contexte_chat(modele, scenario, sid, pos_p, cash_p, operations, versement)
             try:
+                quotas.verifier("chat")
                 with st.spinner("Réponse en cours…"):
                     rep = llm.discuter(ctx, st.session_state[cle_session], question, cle_api, modele)
-            except llm.ErreurIA as e:
+            except (llm.ErreurIA, quotas.QuotaDepasse) as e:
                 st.error(str(e))
             else:
+                quotas.enregistrer("chat")
                 st.session_state[cle_session] = (st.session_state[cle_session]
                                                  + [{"role": "user", "content": question},
                                                     {"role": "model", "content": rep}])[-12:]
-                db.inserer("chat_log", {})
                 st.rerun()
 
 
@@ -832,7 +745,7 @@ def onglet_watchlist() -> None:
             if not c.empty:
                 prix, prev = c.iloc[0]["prix"], c.iloc[0]["prev_close"]
             var = (prix / prev - 1) * 100 if prix and prev and not pd.isna(prev) else None
-            note = "" if r.note is None or pd.isna(r.note) else f"  \n_{r.note}_"
+            note = "" if r.note is None or pd.isna(r.note) else f"  \n_{esc(r.note)}_"
             ticker = tmap.loc[r.isin, "ticker"] if r.isin in tmap.index else None
             f = fonds.get(ticker, {}) if ticker else {}
             res_t = techs.get(ticker) if vue == "Techniques" else None
@@ -840,7 +753,7 @@ def onglet_watchlist() -> None:
 
             with st.container(border=True):
                 g, d = st.columns([3, 2])
-                g.markdown(f"**{nom_de(tmap, r.isin)}**  \n{secteur_de(r.isin, ticker)}{note}"
+                g.markdown(f"**{esc(nom_de(tmap, r.isin))}**  \n{esc(secteur_de(r.isin, ticker))}{note}"
                            + (f"  \nTechnique : {resume_t}" if resume_t else "")
                            + lien_actualites(nom_de(tmap, r.isin)))
                 txt = f"<b>{fmt(prix)} €</b>" if prix and not pd.isna(prix) else "N/A"
@@ -958,7 +871,7 @@ def onglet_projet() -> None:
     if sim.empty and versement == 0:
         st.caption("Aucune opération pour l'instant.")
     for r in sim.itertuples():
-        st.markdown(f"- {r.type} {r.quantite:g} × {nom_de(tmap, r.isin)} @ {fmt(r.prix)} € "
+        st.markdown(f"- {r.type} {r.quantite:g} × {esc(nom_de(tmap, r.isin))} @ {fmt(r.prix)} € "
                     f"(≈ {fmt(r.quantite * r.prix, 0)} €)")
     if versement:
         st.markdown(f"- Versement fictif : {fmt(versement, 0)} €")
@@ -1082,7 +995,7 @@ def _oublier_import() -> None:
 
 def _lire_captures(files, cle_api: str, modele: str) -> None:
     """Gemini lit les images, puis la différence avec la base est calculée (rien n'est écrit)."""
-    if mode_demo:  # défense en profondeur : l'UI désactive déjà le bouton
+    if mode_demo:  # défense en profondeur : l'UI désactive déjà le bouton (et quotas.verifier refuse)
         return
     images = []
     for f in files:
@@ -1093,12 +1006,13 @@ def _lire_captures(files, cle_api: str, modele: str) -> None:
             return
         images.append((octets, mime))
     try:
+        quotas.verifier("capture")
         with st.spinner("Lecture des captures par Gemini…"):
             brut = llm.extraire_capture(images, cle_api, modele)
-    except llm.ErreurIA as e:
+    except (llm.ErreurIA, quotas.QuotaDepasse) as e:
         st.error(str(e))
         return
-    st.session_state["imp_appels"] = st.session_state.get("imp_appels", []) + [maintenant().date()]
+    quotas.enregistrer("capture")
     lignes, avert = IE.normaliser_releve(brut)
     if not lignes:
         st.error("Aucune ligne de portefeuille lisible sur ces captures.")
@@ -1142,23 +1056,21 @@ def import_captures() -> None:
     st.caption("Chargez une ou plusieurs captures de votre portefeuille chez le courtier : "
                "l'app propose les achats / ventes qui alignent votre suivi sur la réalité. "
                "Rien n'est enregistré avant votre validation.")
-    cle_api = auth.secret("GEMINI_API_KEY")
-    modele = auth.secret("GEMINI_MODEL") or llm.MODELE_DEFAUT
+    cle_api = config.cle_gemini()
+    modele = config.modele_gemini()
     if mode_demo:
         st.file_uploader("Captures", disabled=True, key="imp_demo_up")
         st.button("🔍 Lire les captures", disabled=True, key="imp_demo_btn")
         st.caption("Indisponible en mode démo (utilise l'API Gemini).")
         return
 
-    max_jour = llm.MAX_IMPORTS_PAR_JOUR
-    n_auj = sum(1 for d in st.session_state.get("imp_appels", []) if d == maintenant().date())
-    limite = n_auj >= max_jour
+    limite = quotas.limite_atteinte("capture")
     files = st.file_uploader(f"Captures (PNG/JPEG, {llm.MAX_CAPTURES} max)", type=["png", "jpg", "jpeg", "webp"],
                              accept_multiple_files=True, key=f"imp_up{st.session_state.get('imp_upn', 0)}")
     if not cle_api:
         st.caption("Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'import.")
     elif limite:
-        st.caption(f"Limite de {max_jour} lectures par jour atteinte.")
+        st.caption(quotas.message_limite("capture"))
     else:
         st.caption("🔐 Les images sont envoyées telles quelles à Gemini : quantités et montants y sont "
                    "lisibles (contrairement à l'analyse IA). Cadrez sans nom ni numéro de compte. "
@@ -1183,7 +1095,7 @@ def import_captures() -> None:
         st.caption("• " + a)
     with st.expander(f"📋 {len(releve)} ligne(s) lue(s) chez le courtier"):
         for l in releve:
-            st.markdown(f"- **{l['nom']}** : {l['quantite']:g} @ {fmt(l['prm'], 4)} € · "
+            st.markdown(f"- **{esc(l['nom'])}** : {l['quantite']:g} @ {fmt(l['prm'], 4)} € · "
                         f"{l['isin'] or '?'} ({SOURCES_ISIN[l['source_isin']]})")
 
     if ops.empty:
@@ -1225,7 +1137,7 @@ def import_captures() -> None:
             for r in ecarts.itertuples():
                 prm = ("" if pd.isna(r.prm_courtier) or pd.isna(r.prm_base) else
                        f" · PRM {fmt(r.prm_base, 4)} (suivi) / {fmt(r.prm_courtier, 4)} (courtier)")
-                st.markdown(f"- **{r.nom}** : quantité {r.qte_base:g} (suivi) / {r.qte_courtier:g} (courtier){prm}")
+                st.markdown(f"- **{esc(r.nom)}** : quantité {r.qte_base:g} (suivi) / {r.qte_courtier:g} (courtier){prm}")
         return
 
     if nouvelles.empty:
@@ -1242,8 +1154,7 @@ def import_captures() -> None:
             if err:
                 st.error(err)
                 return
-    for r in nouvelles.itertuples(index=False):
-        db.inserer("transactions", r._asdict())
+    db.inserer_lot("transactions", [r._asdict() for r in nouvelles.itertuples(index=False)])  # une requête
     _oublier_import()
     flash(f"{len(nouvelles)} transaction(s) enregistrée(s) ✅")
     st.rerun()
@@ -1403,12 +1314,8 @@ def onglet_saisie() -> None:
         if st.button("Reconstituer l'historique", disabled=trans.empty):
             with st.spinner("Téléchargement des historiques de cours…"):
                 debut = trans["date"].min().strftime("%Y-%m-%d")
-                prix_hist, isin_ticker = {}, tmap["ticker"].to_dict()
-                for t in set(isin_ticker.values()):
-                    try:
-                        prix_hist[t] = D.historique_cloture(t, debut)
-                    except Exception:
-                        pass
+                isin_ticker = tmap["ticker"].to_dict()
+                prix_hist = D.historiques_groupes(set(isin_ticker.values()), debut)  # un seul téléchargement
                 rec = C.reconstituer_snapshots(trans, flux, prix_hist, isin_ticker)
                 db.upsert("snapshots", [{"date": r.date, "valeur": round(r.valeur, 2),
                                          "apports": round(r.apports, 2)} for r in rec.itertuples()],
@@ -1448,8 +1355,9 @@ def onglet_saisie() -> None:
 # --------------------------------------------------------------------------- #
 # Mise en page : 5 onglets
 # --------------------------------------------------------------------------- #
+# Onglets paresseux (P1) : seul l'onglet ouvert s'exécute ; changer d'onglet relance le script.
 tab_pf, tab_hist, tab_proj, tab_wl, tab_saisie = st.tabs(
-    ["📊 Portefeuille", "📈 Historique", "🔭 Projet", "👀 Watchlist", "➕ Saisie"])
+    ["📊 Portefeuille", "📈 Historique", "🔭 Projet", "👀 Watchlist", "➕ Saisie"], on_change="rerun", key="onglet")
 
 def graphique_secteurs(df: pd.DataFrame) -> None:
     """Anneau de répartition par secteur : palette douce commune à tous les graphiques, pourcentages
@@ -1584,40 +1492,6 @@ def pf_lignes() -> None:
 
 
 # -- Matrice de notes : deux grandeurs notées de 1 à 10 (relatives au portefeuille), croisées --------
-# clé -> (libellé, « bas = bon » ?, unité pour l'affichage, ce que signifie une note haute)
-GRANDEURS = {
-    "per": ("PER", True, "x", "PER bas"),
-    "per_prev": ("PER prévisionnel", True, "x", "PER prévisionnel bas"),
-    "ev_ebitda": ("EV/EBITDA", True, "x", "EV/EBITDA bas"),
-    "p_ca": ("Capitalisation / CA", True, "x", "valorisation basse"),
-    "marge": ("Marge nette", False, "%", "forte marge"),
-    "net_income": ("Bénéfice net", False, "", "gros bénéfice"),
-    "ebitda": ("EBITDA", False, "", "gros EBITDA"),
-    "ca": ("Chiffre d'affaires", False, "", "gros chiffre d'affaires"),
-    "capi": ("Capitalisation", False, "", "grosse capitalisation"),
-}
-RATIOS_POSITIFS = {"per", "per_prev", "ev_ebitda", "p_ca"}  # ≤ 0 = société déficitaire = sans valeur
-
-
-def valeur_grandeur(f: dict | None, cle: str):
-    """Valeur brute d'une grandeur pour une ligne (None si absente ou inexploitable)."""
-    f = f or {}
-
-    def num(k):
-        x = f.get(k)
-        return None if x is None or pd.isna(x) else float(x)
-
-    if cle == "marge":
-        ni, ca = num("net_income"), num("ca")
-        v = ni / ca * 100 if ni is not None and ca else None
-    elif cle == "p_ca":
-        capi, ca = num("capi"), num("ca")
-        v = capi / ca if capi is not None and ca and ca > 0 else None
-    else:
-        v = num(cle)
-    return None if v is not None and cle in RATIOS_POSITIFS and v <= 0 else v
-
-
 def matrice_notes() -> None:
     """Nuage de points : deux grandeurs au choix, chacune notée de 1 à 10 par rang dans le portefeuille
     (10 = le meilleur, 1 = sans valeur, ex. PER d'une société déficitaire). Jamais de ligne écartée."""
@@ -1813,7 +1687,7 @@ def onglet_historique() -> None:
                 st.caption("Performance pondérée par le temps : neutralise vos versements, base 100.")
                 choix = st.selectbox("Comparer à", list(BENCHMARKS), label_visibility="collapsed")
                 try:  # table « partage » absente (migration non faite) ou base indisponible : pas d'amis
-                    amis = db.performances_partagees()
+                    amis = partage.performances_partagees()
                 except Exception:
                     amis = pd.DataFrame(columns=["pseudo", "date", "twr"])
                 noms = sorted(amis["pseudo"].unique())
@@ -1842,7 +1716,7 @@ def onglet_historique() -> None:
                         continue  # pas de données sur la période
                     s = s / s.dropna().iloc[0] * 100
                     perf_amis[p] = s.iloc[-1] - 100
-                    fig.add_scatter(x=twr["date"], y=s.to_numpy(), name=p, mode="lines",
+                    fig.add_scatter(x=twr["date"], y=s.to_numpy(), name=sur_pour_graphique(p), mode="lines",
                                     line=dict(width=1.5, color=style.COULEURS_AMIS[n % len(style.COULEURS_AMIS)]),
                                     connectgaps=False, hovertemplate="%{y:.1f}")
                 style.habiller(fig, hovermode="x unified")
@@ -1856,34 +1730,60 @@ def onglet_historique() -> None:
                     resume += f" · {choix} : **{fmt(bench.iloc[-1] - 100, 2, True)} %**"
                 st.markdown(resume)
                 if perf_amis:
-                    st.markdown(" · ".join(f"{p} : **{fmt(v, 2, True)} %**" for p, v in perf_amis.items()))
+                    st.markdown(" · ".join(f"{esc(p)} : **{fmt(v, 2, True)} %**" for p, v in perf_amis.items()))
                     st.caption("Courbes des autres utilisateurs : base 100 au début de la période (ou à leur "
                                "1er point s'il est plus récent).")
 
     if not auth.est_demo():
         bloc_partage()
 
-with tab_pf:
-    pf_synthese()
-    pf_lignes()
-    pf_graphiques()
+def ouvert(tab) -> bool:
+    """`tab.open` vaut None si la version de Streamlit ne suit pas l'onglet actif : tout s'exécute alors."""
+    return tab.open is not False
 
-with tab_hist:
-    onglet_historique()
 
-with tab_proj:
-    onglet_projet()
+if ouvert(tab_pf):
+    with tab_pf:
+        pf_synthese()
+        pf_lignes()
+        pf_graphiques()
 
-with tab_wl:
-    onglet_watchlist()
+if ouvert(tab_hist):
+    with tab_hist:
+        onglet_historique()
 
-with tab_saisie:
-    with st.container(key="saisie"):  # largeur limitée par le CSS : formulaires lisibles sur grand écran
-        onglet_saisie()
+if ouvert(tab_proj):
+    with tab_proj:
+        onglet_projet()
+
+if ouvert(tab_wl):
+    with tab_wl:
+        onglet_watchlist()
+
+if ouvert(tab_saisie):
+    with tab_saisie:
+        with st.container(key="saisie"):  # largeur limitée par le CSS : formulaires lisibles sur grand écran
+            onglet_saisie()
 
 memoriser_cours_et_snapshot()  # après l'affichage : n'allonge pas le temps avant la page
 
-if auth.secret("DEBUG_PERF"):  # secret facultatif : DEBUG_PERF = true
+
+@st.fragment(run_every=2)
+def surveiller_marche() -> None:
+    """Cours encore en téléchargement (arrière-plan) : relance l'affichage dès qu'ils arrivent (≤ 30 s)."""
+    n = st.session_state.get("_attente_marche", 0)
+    if not D.rafraichissement_en_cours() or n > 15:
+        st.session_state.pop("_attente_marche", None)
+        if n:
+            st.rerun()
+        return
+    st.session_state["_attente_marche"] = n + 1
+
+
+if D.rafraichissement_en_cours():
+    surveiller_marche()
+
+if config.debug_perf():  # secret facultatif : DEBUG_PERF = true
     t = [(k, v) for k, v in CHRONO.items() if k != "debut"]
     prec, morceaux = CHRONO["debut"], []
     for k, v in t:

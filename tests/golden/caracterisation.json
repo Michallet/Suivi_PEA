@@ -1,0 +1,2456 @@
+{
+ "calculs_enrichir_positions": {
+  "__df__": true,
+  "colonnes": [
+   "isin",
+   "quantite",
+   "cout",
+   "prm",
+   "ticker",
+   "nom",
+   "prix",
+   "prev_close",
+   "statut",
+   "prix_eff",
+   "valeur",
+   "pv_latente",
+   "perf_pct",
+   "var_jour_eur",
+   "var_jour_pct",
+   "dividendes",
+   "poids_pct"
+  ],
+  "lignes": [
+   [
+    "FR00ALPHA014",
+    11.0,
+    1184.333333333,
+    107.666666667,
+    "ALP.PA",
+    "Alpha SA",
+    140.0,
+    138.0,
+    "live",
+    140.0,
+    1540.0,
+    355.666666667,
+    30.030959752,
+    22.0,
+    1.449275362,
+    12.5,
+    35.586366262
+   ],
+   [
+    "FR00GAMMA037",
+    5.0,
+    250.0,
+    50.0,
+    "GAM.PA",
+    "Gamma Monde UCITS ETF",
+    52.0,
+    51.0,
+    "live",
+    52.0,
+    260.0,
+    10.0,
+    4.0,
+    5.0,
+    1.960784314,
+    0.0,
+    6.008087811
+   ],
+   [
+    "NL00DELTA048",
+    8.0,
+    606.0,
+    75.75,
+    "DEL.AS",
+    "Delta Santé NV",
+    80.0,
+    "NaN",
+    "obsolète",
+    80.0,
+    640.0,
+    34.0,
+    5.610561056,
+    0.0,
+    0.0,
+    4.2,
+    14.789139226
+   ],
+   [
+    "ITEPSILON059",
+    150.0,
+    1887.5,
+    12.583333333,
+    "NaN",
+    "ITEPSILON059",
+    "NaN",
+    "NaN",
+    "estimé",
+    12.583333333,
+    1887.5,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    43.616406701
+   ]
+  ]
+ },
+ "calculs_flux_et_synthese": {
+  "flux": {
+   "__df__": true,
+   "colonnes": [
+    "date",
+    "delta_cash",
+    "delta_apports"
+   ],
+   "lignes": [
+    [
+     "2025-01-06T00:00:00",
+     -1010.0,
+     0.0
+    ],
+    [
+     "2025-01-06T00:00:00",
+     -250.0,
+     0.0
+    ],
+    [
+     "2025-02-03T00:00:00",
+     -605.0,
+     0.0
+    ],
+    [
+     "2025-02-17T00:00:00",
+     -605.0,
+     0.0
+    ],
+    [
+     "2025-03-10T00:00:00",
+     515.0,
+     0.0
+    ],
+    [
+     "2025-03-24T00:00:00",
+     -606.0,
+     0.0
+    ],
+    [
+     "2025-04-07T00:00:00",
+     655.0,
+     0.0
+    ],
+    [
+     "2025-04-28T00:00:00",
+     -1237.5,
+     0.0
+    ],
+    [
+     "2025-05-12T00:00:00",
+     -650.0,
+     0.0
+    ],
+    [
+     "2025-03-03T00:00:00",
+     12.5,
+     0.0
+    ],
+    [
+     "2025-05-05T00:00:00",
+     4.2,
+     0.0
+    ],
+    [
+     "2025-01-02T00:00:00",
+     3000.0,
+     3000.0
+    ],
+    [
+     "2025-03-01T00:00:00",
+     500.0,
+     500.0
+    ],
+    [
+     "2025-04-01T00:00:00",
+     800.0,
+     0.0
+    ],
+    [
+     "2025-05-20T00:00:00",
+     -100.0,
+     -100.0
+    ]
+   ]
+  },
+  "synthese": {
+   "apports": 3400.0,
+   "cash": 423.2,
+   "perf_pct": 39.726470588,
+   "plafond_pct": 2.333333333,
+   "pv_globale": 1350.7,
+   "valeur_titres": 4327.5,
+   "valeur_totale": 4750.7,
+   "var_jour_eur": 27.0,
+   "var_jour_pct": 0.627833973,
+   "versements_cumules": 3500.0
+  },
+  "synthese_vide": {
+   "apports": 0.0,
+   "cash": 0.0,
+   "perf_pct": 0.0,
+   "plafond_pct": 0.0,
+   "pv_globale": 0.0,
+   "valeur_titres": 0.0,
+   "valeur_totale": 0.0,
+   "var_jour_eur": 0.0,
+   "var_jour_pct": 0.0,
+   "versements_cumules": 0.0
+  }
+ },
+ "calculs_gros_nombres": {
+  "-2300000000": "-2,30 Md €",
+  "0": "N/A",
+  "1000000000.0": "1,00 Md €",
+  "1234.5": "1 234 €",
+  "1500000": "1,50 M €",
+  "4200000000000.0": "4,20 T €",
+  "999": "999 €",
+  "999999.9": "1 000 000 €",
+  "None": "N/A",
+  "nan": "N/A"
+ },
+ "calculs_isin_valide": {
+  "": false,
+  " NL00DELTA048 ": true,
+  "1R00ALPHA011": false,
+  "DE00BETA0021": true,
+  "FR0000121014": true,
+  "FR00ALPHA01": false,
+  "FR00ALPHA010": false,
+  "FR00ALPHA014": true,
+  "None": false,
+  "US0378331005": true,
+  "XX": false,
+  "fr00alpha014": true
+ },
+ "calculs_notes_relatives": {
+  "absents_bas": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "valeurs": [
+    10.0,
+    1.0,
+    2.0,
+    1.0,
+    6.0
+   ]
+  },
+  "absents_haut": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "valeurs": [
+    2.0,
+    1.0,
+    10.0,
+    1.0,
+    6.0
+   ]
+  },
+  "aucun_bas": {
+   "__serie__": true,
+   "index": [
+    0,
+    1
+   ],
+   "valeurs": [
+    1.0,
+    1.0
+   ]
+  },
+  "aucun_haut": {
+   "__serie__": true,
+   "index": [
+    0,
+    1
+   ],
+   "valeurs": [
+    1.0,
+    1.0
+   ]
+  },
+  "egalites_bas": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "valeurs": [
+    4.375,
+    4.375,
+    1.0,
+    8.875,
+    8.875
+   ]
+  },
+  "egalites_haut": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2,
+    3,
+    4
+   ],
+   "valeurs": [
+    6.625,
+    6.625,
+    10.0,
+    2.125,
+    2.125
+   ]
+  },
+  "inf_bas": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2
+   ],
+   "valeurs": [
+    10.0,
+    1.0,
+    2.0
+   ]
+  },
+  "inf_haut": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2
+   ],
+   "valeurs": [
+    2.0,
+    1.0,
+    10.0
+   ]
+  },
+  "texte_bas": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2
+   ],
+   "valeurs": [
+    10.0,
+    1.0,
+    2.0
+   ]
+  },
+  "texte_haut": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2
+   ],
+   "valeurs": [
+    2.0,
+    1.0,
+    10.0
+   ]
+  },
+  "tous_bas": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "valeurs": [
+    7.0,
+    1.0,
+    4.0,
+    10.0
+   ]
+  },
+  "tous_haut": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "valeurs": [
+    4.0,
+    10.0,
+    7.0,
+    1.0
+   ]
+  },
+  "un_seul_bas": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2
+   ],
+   "valeurs": [
+    10.0,
+    1.0,
+    1.0
+   ]
+  },
+  "un_seul_haut": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2
+   ],
+   "valeurs": [
+    10.0,
+    1.0,
+    1.0
+   ]
+  },
+  "un_seul_plein_bas": {
+   "__serie__": true,
+   "index": [
+    0
+   ],
+   "valeurs": [
+    5.5
+   ]
+  },
+  "un_seul_plein_haut": {
+   "__serie__": true,
+   "index": [
+    0
+   ],
+   "valeurs": [
+    5.5
+   ]
+  }
+ },
+ "calculs_positions_journal": {
+  "positions": {
+   "__df__": true,
+   "colonnes": [
+    "isin",
+    "quantite",
+    "cout",
+    "prm"
+   ],
+   "lignes": [
+    [
+     "FR00ALPHA014",
+     11.0,
+     1184.333333333,
+     107.666666667
+    ],
+    [
+     "FR00GAMMA037",
+     5.0,
+     250.0,
+     50.0
+    ],
+    [
+     "NL00DELTA048",
+     8.0,
+     606.0,
+     75.75
+    ],
+    [
+     "ITEPSILON059",
+     150.0,
+     1887.5,
+     12.583333333
+    ]
+   ]
+  },
+  "ventes": {
+   "__df__": true,
+   "colonnes": [
+    "date",
+    "isin",
+    "quantite",
+    "prm",
+    "pv"
+   ],
+   "lignes": [
+    [
+     "2025-03-10T00:00:00",
+     "FR00ALPHA014",
+     4.0,
+     107.666666667,
+     84.333333333
+    ],
+    [
+     "2025-04-07T00:00:00",
+     "DE00BETA0021",
+     20.0,
+     30.25,
+     50.0
+    ]
+   ]
+  }
+ },
+ "calculs_positions_vide": {
+  "n": [
+   {
+    "__df__": true,
+    "colonnes": [
+     "isin",
+     "quantite",
+     "cout",
+     "prm"
+    ],
+    "lignes": []
+   },
+   {
+    "__df__": true,
+    "colonnes": [
+     "date",
+     "isin",
+     "quantite",
+     "prm",
+     "pv"
+    ],
+    "lignes": []
+   }
+  ],
+  "v": [
+   {
+    "__df__": true,
+    "colonnes": [
+     "isin",
+     "quantite",
+     "cout",
+     "prm"
+    ],
+    "lignes": []
+   },
+   {
+    "__df__": true,
+    "colonnes": [
+     "date",
+     "isin",
+     "quantite",
+     "prm",
+     "pv"
+    ],
+    "lignes": []
+   }
+  ]
+ },
+ "calculs_reconstitution": {
+  "n": 128,
+  "queue": {
+   "__df__": true,
+   "colonnes": [
+    "date",
+    "valeur",
+    "apports"
+   ],
+   "lignes": [
+    [
+     "2025-06-23T00:00:00",
+     4323.944117292,
+     3400.0
+    ],
+    [
+     "2025-06-24T00:00:00",
+     4314.750022992,
+     3400.0
+    ],
+    [
+     "2025-06-25T00:00:00",
+     4317.633186103,
+     3400.0
+    ],
+    [
+     "2025-06-26T00:00:00",
+     4316.272350346,
+     3400.0
+    ],
+    [
+     "2025-06-27T00:00:00",
+     4328.545695019,
+     3400.0
+    ],
+    [
+     "2025-06-30T00:00:00",
+     4337.029351682,
+     3400.0
+    ]
+   ]
+  },
+  "tete": {
+   "__df__": true,
+   "colonnes": [
+    "date",
+    "valeur",
+    "apports"
+   ],
+   "lignes": [
+    [
+     "2025-01-02T00:00:00",
+     3000.0,
+     3000.0
+    ],
+    [
+     "2025-01-03T00:00:00",
+     3000.0,
+     3000.0
+    ],
+    [
+     "2025-01-06T00:00:00",
+     3005.104702166,
+     3000.0
+    ],
+    [
+     "2025-01-07T00:00:00",
+     2997.972818808,
+     3000.0
+    ],
+    [
+     "2025-01-08T00:00:00",
+     2995.699219461,
+     3000.0
+    ],
+    [
+     "2025-01-09T00:00:00",
+     2991.57274236,
+     3000.0
+    ]
+   ]
+  },
+  "vide": {
+   "__df__": true,
+   "colonnes": [
+    "date",
+    "valeur",
+    "apports"
+   ],
+   "lignes": []
+  }
+ },
+ "calculs_repartitions": {
+  "cmp_label": {
+   "__df__": true,
+   "colonnes": [
+    "label",
+    "reel",
+    "projete",
+    "ecart"
+   ],
+   "lignes": [
+    [
+     "Alpha SA",
+     33.128966333,
+     61.847389558,
+     28.718423225
+    ],
+    [
+     "ITEPSILON059",
+     40.604496074,
+     0.0,
+     -40.604496074
+    ],
+    [
+     "Delta Santé NV",
+     13.767882113,
+     25.702811245,
+     11.934929132
+    ],
+    [
+     "Gamma Monde UCITS ETF",
+     5.593202108,
+     10.441767068,
+     4.84856496
+    ],
+    [
+     "Cash",
+     6.905453372,
+     2.008032129,
+     -4.897421244
+    ]
+   ]
+  },
+  "cmp_sect": {
+   "__df__": true,
+   "colonnes": [
+    "secteur",
+    "reel",
+    "projete",
+    "ecart"
+   ],
+   "lignes": [
+    [
+     "Luxe",
+     33.128966333,
+     61.847389558,
+     28.718423225
+    ],
+    [
+     "Énergie",
+     40.604496074,
+     0.0,
+     -40.604496074
+    ],
+    [
+     "Santé",
+     13.767882113,
+     25.702811245,
+     11.934929132
+    ],
+    [
+     "ETF monde",
+     5.593202108,
+     10.441767068,
+     4.84856496
+    ],
+    [
+     "Cash",
+     6.905453372,
+     2.008032129,
+     -4.897421244
+    ]
+   ]
+  },
+  "proj": {
+   "__df__": true,
+   "colonnes": [
+    "label",
+    "secteur",
+    "valeur",
+    "poids_pct"
+   ],
+   "lignes": [
+    [
+     "Alpha SA",
+     "Luxe",
+     1540.0,
+     61.847389558
+    ],
+    [
+     "Gamma Monde UCITS ETF",
+     "ETF monde",
+     260.0,
+     10.441767068
+    ],
+    [
+     "Delta Santé NV",
+     "Santé",
+     640.0,
+     25.702811245
+    ],
+    [
+     "Cash",
+     "Cash",
+     50.0,
+     2.008032129
+    ]
+   ]
+  },
+  "reel": {
+   "__df__": true,
+   "colonnes": [
+    "label",
+    "secteur",
+    "valeur",
+    "poids_pct"
+   ],
+   "lignes": [
+    [
+     "Alpha SA",
+     "Luxe",
+     1540.0,
+     33.128966333
+    ],
+    [
+     "Gamma Monde UCITS ETF",
+     "ETF monde",
+     260.0,
+     5.593202108
+    ],
+    [
+     "Delta Santé NV",
+     "Santé",
+     640.0,
+     13.767882113
+    ],
+    [
+     "ITEPSILON059",
+     "Énergie",
+     1887.5,
+     40.604496074
+    ],
+    [
+     "Cash",
+     "Cash",
+     321.0,
+     6.905453372
+    ]
+   ]
+  },
+  "vide": {
+   "__df__": true,
+   "colonnes": [
+    "label",
+    "secteur",
+    "valeur",
+    "poids_pct"
+   ],
+   "lignes": []
+  }
+ },
+ "calculs_scenario": {
+  "cash": 813.2,
+  "erreur": {
+   "__erreur__": "ValueError",
+   "message": "Vente de 99 × FR00ALPHA014 le 30/06/2025 : seulement 11 en portefeuille à cette date."
+  },
+  "pos": {
+   "__df__": true,
+   "colonnes": [
+    "isin",
+    "quantite",
+    "cout",
+    "prm"
+   ],
+   "lignes": [
+    [
+     "FR00ALPHA014",
+     8.0,
+     861.333333333,
+     107.666666667
+    ],
+    [
+     "FR00GAMMA037",
+     5.0,
+     250.0,
+     50.0
+    ],
+    [
+     "DE00BETA0021",
+     10.0,
+     310.0,
+     31.0
+    ],
+    [
+     "NL00DELTA048",
+     8.0,
+     606.0,
+     75.75
+    ],
+    [
+     "ITEPSILON059",
+     150.0,
+     1887.5,
+     12.583333333
+    ]
+   ]
+  },
+  "sans_sim": 423.2,
+  "ventes": {
+   "__df__": true,
+   "colonnes": [
+    "date",
+    "isin",
+    "quantite",
+    "prm",
+    "pv"
+   ],
+   "lignes": [
+    [
+     "2025-03-10T00:00:00",
+     "FR00ALPHA014",
+     4.0,
+     107.666666667,
+     84.333333333
+    ],
+    [
+     "2025-04-07T00:00:00",
+     "DE00BETA0021",
+     20.0,
+     30.25,
+     50.0
+    ],
+    [
+     "2025-06-30T00:00:00",
+     "FR00ALPHA014",
+     3.0,
+     107.666666667,
+     127.0
+    ]
+   ]
+  }
+ },
+ "calculs_twr": {
+  "__df__": true,
+  "colonnes": [
+   "date",
+   "twr"
+  ],
+  "lignes": [
+   [
+    "2025-01-02T00:00:00",
+    100.0
+   ],
+   [
+    "2025-01-03T00:00:00",
+    101.0
+   ],
+   [
+    "2025-01-06T00:00:00",
+    101.668874172
+   ],
+   [
+    "2025-01-07T00:00:00",
+    100.331125828
+   ],
+   [
+    "2025-01-08T00:00:00",
+    102.003311258
+   ],
+   [
+    "2025-01-09T00:00:00",
+    96.986754967
+   ],
+   [
+    "2025-01-10T00:00:00",
+    0.0
+   ],
+   [
+    "2025-01-13T00:00:00",
+    0.0
+   ]
+  ]
+ },
+ "calculs_vente_excessive": {
+  "__erreur__": "ValueError",
+  "message": "Vente de 50 × FR00ALPHA014 le 02/06/2025 : seulement 11 en portefeuille à cette date."
+ },
+ "concurrents_candidats_et_choix": {
+  "candidats": [
+   {
+    "isin": "DE00BETA0021",
+    "nom": "Beta Industries AG",
+    "raison": "même métier"
+   },
+   {
+    "isin": "NL00DELTA048",
+    "nom": "Delta Santé NV",
+    "raison": "x"
+   },
+   {
+    "isin": "ITEPSILON059",
+    "nom": "Epsilon",
+    "raison": "y"
+   }
+  ],
+  "choix": {
+   "isin": "NL00DELTA048",
+   "nom": "Delta Santé NV",
+   "raison": "x",
+   "ticker": "DEL.AS"
+  },
+  "choix_aucun": null,
+  "invalide": {
+   "__erreur__": "ErreurIA",
+   "message": "Réponse de l'IA inattendue (candidats)."
+  },
+  "memetitre": null
+ },
+ "concurrents_manuel_et_comparaison": {
+  "contexte": "Entreprise : Alpha SA\nISIN : FR00ALPHA014 (pays : FR)\nSecteur : Consumer\nIndustrie : Luxury\nCapitalisation approximative : 5,00 Md €\n\nPropose les concurrents cotés les plus pertinents.",
+  "contexte_min": "Entreprise : X\nISIN : DE00BETA0021 (pays : DE)\n\nPropose les concurrents cotés les plus pertinents.",
+  "lignes": [
+   {
+    "label": "PER",
+    "unite": "x",
+    "vc": 15.0,
+    "vt": 20.0
+   },
+   {
+    "label": "PER prévisionnel",
+    "unite": "x",
+    "vc": null,
+    "vt": 18.0
+   },
+   {
+    "label": "EV/EBITDA",
+    "unite": "x",
+    "vc": 9.0,
+    "vt": 12.0
+   },
+   {
+    "label": "Marge nette",
+    "unite": "%",
+    "vc": null,
+    "vt": 10.0
+   },
+   {
+    "label": "Marge EBITDA",
+    "unite": "%",
+    "vc": null,
+    "vt": 30.0
+   },
+   {
+    "label": "Capitalisation",
+    "unite": "montant",
+    "vc": 2000000000.0,
+    "vt": 5000000000.0
+   }
+  ],
+  "lignes_usd": [
+   {
+    "label": "PER",
+    "unite": "x",
+    "vc": 15.0,
+    "vt": 20.0
+   },
+   {
+    "label": "PER prévisionnel",
+    "unite": "x",
+    "vc": null,
+    "vt": 18.0
+   },
+   {
+    "label": "EV/EBITDA",
+    "unite": "x",
+    "vc": 9.0,
+    "vt": 12.0
+   },
+   {
+    "label": "Marge nette",
+    "unite": "%",
+    "vc": null,
+    "vt": 10.0
+   },
+   {
+    "label": "Marge EBITDA",
+    "unite": "%",
+    "vc": null,
+    "vt": 30.0
+   }
+  ],
+  "lignes_vide": [],
+  "manuel": [
+   [
+    {
+     "isin": "NL00DELTA048",
+     "nom": "Nom Yahoo",
+     "ticker": "XXX.PA"
+    },
+    null
+   ],
+   [
+    {
+     "isin": "",
+     "nom": "Nom Yahoo",
+     "ticker": "SIE.DE"
+    },
+    null
+   ],
+   [
+    null,
+    "Indiquez l'ISIN du concurrent (ou à défaut son ticker Yahoo)."
+   ],
+   [
+    null,
+    "ISIN invalide (12 caractères, clé de contrôle incorrecte)."
+   ],
+   [
+    null,
+    "Le concurrent doit être une autre société que le titre."
+   ],
+   [
+    null,
+    "Aucun cours Yahoo trouvé pour ce ticker."
+   ]
+  ]
+ },
+ "formats_fondamentaux_et_etf": {
+  "deficitaire": {
+   "ev_ebitda": null,
+   "marge": -50.0,
+   "net_income": -5.0,
+   "p_ca": 0.4,
+   "per": null
+  },
+  "est_etf": [
+   true,
+   false,
+   true,
+   false,
+   true
+  ],
+  "grandeurs": {
+   "ca": 2500000000.0,
+   "capi": 8000000000.0,
+   "ev_ebitda": 18.0,
+   "marge": 12.4,
+   "net_income": 310000000.0,
+   "p_ca": 3.2,
+   "per": 18.2,
+   "per_prev": 15.0
+  },
+  "lignes": [
+   [
+    "PER",
+    "18,2"
+   ],
+   [
+    "PER prévisionnel",
+    "15,0"
+   ],
+   [
+    "Chiffre d'affaires",
+    "2,50 Md €"
+   ],
+   [
+    "Bénéfice net",
+    "310,00 M €"
+   ],
+   [
+    "EBITDA",
+    "500,00 M €"
+   ],
+   [
+    "Capitalisation",
+    "8,00 Md €"
+   ],
+   [
+    "Valeur d'entreprise",
+    "9,00 Md €"
+   ],
+   [
+    "EV/EBITDA",
+    "18,0x"
+   ]
+  ],
+  "lignes_etf": [
+   [
+    "Actifs sous gestion",
+    "1,20 Md €"
+   ],
+   [
+    "Frais annuels",
+    "0,00 %"
+   ]
+  ],
+  "vide": []
+ },
+ "formats_nombres": {
+  "fmt": [
+   "1 234,57",
+   "-1 234,57",
+   "+0",
+   "N/A",
+   "N/A",
+   "1 000 000",
+   "0,01",
+   "12,346"
+  ],
+  "pastille": [
+   "<span style='color:#16a34a'>x</span>",
+   "<span style='color:#16a34a'>y</span>",
+   "<span style='color:#dc2626'>z</span>"
+  ]
+ },
+ "formats_noms_et_liens": {
+  "cellules": [
+   "—",
+   "12,3x",
+   "12,3 %",
+   "2,50 Md €"
+  ],
+  "court": [
+   "Amundi PEA Mo…",
+   "Court"
+  ],
+  "lien": [
+   "  \n[📰 Google Actualités](https://news.google.com/search?q=Alpha+SA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)",
+   "",
+   ""
+  ],
+  "sans_parentheses": {
+   "__serie__": true,
+   "index": [
+    0,
+    1,
+    2,
+    3
+   ],
+   "valeurs": [
+    "Amundi PEA Monde UCITS ETF",
+    "Alpha SA",
+    "Simple",
+    "Espaces"
+   ]
+  },
+  "url": "https://news.google.com/search?q=L%27Or%C3%A9al+%26+Cie+bourse&hl=fr&gl=FR&ceid=FR%3Afr"
+ },
+ "ia_contextes": {
+  "autre_modele": "21f83ede4d6bd3c8",
+  "ctx": [
+   "Portefeuille PEA d'un investisseur particulier français.\nLes poids sont en % de la valeur totale du PEA (cash inclus). Aucun montant en euros n'est communiqué.\n\nNombre de lignes : 4\nCash : 6.9 %\nLignes (poids décroissant) :\n1. ITEPSILON059 | ISIN ITEPSILON059 | secteur : Énergie | poids : 40.6 % | PER : n/d | performance latente : +0.0 %\n2. Alpha SA | ISIN FR00ALPHA014 | secteur : Luxe | poids : 33.1 % | PER : 18.5 | performance latente : +30.0 %\n3. Delta Santé NV | ISIN NL00DELTA048 | secteur : Santé | poids : 13.8 % | PER : n/d | performance latente : +5.6 %\n4. Gamma Monde UCITS ETF | ISIN FR00GAMMA037 | secteur : ETF monde | poids : 5.6 % | PER : n/d | performance latente : +4.0 %\n\nÉvalue les 4 critères.",
+   "0632192951280cde"
+  ],
+  "scen": [
+   "Portefeuille PEA d'un investisseur particulier français.\nLes poids sont en % de la valeur totale du PEA (cash inclus). Aucun montant en euros n'est communiqué.\n\nSTRUCTURE ACTUELLE (référence) :\nCash : 6.9 %\nLignes (poids décroissant) :\n1. ITEPSILON059 | ISIN ITEPSILON059 | secteur : Énergie | poids : 40.6 % | PER : n/d | performance latente : +0.0 %\n2. Alpha SA | ISIN FR00ALPHA014 | secteur : Luxe | poids : 33.1 % | PER : 18.5 | performance latente : +30.0 %\n3. Delta Santé NV | ISIN NL00DELTA048 | secteur : Santé | poids : 13.8 % | PER : n/d | performance latente : +5.6 %\n4. Gamma Monde UCITS ETF | ISIN FR00GAMMA037 | secteur : ETF monde | poids : 5.6 % | PER : n/d | performance latente : +4.0 %\n\nSTRUCTURE PROJETÉE (scénario à évaluer) :\nCash : 0.4 %\nLignes (poids décroissant) :\n1. Alpha SA | ISIN FR00ALPHA014 | secteur : Luxe | poids : 62.9 % | PER : 18.5 | performance latente : +30.0 %\n2. Delta Santé NV | ISIN NL00DELTA048 | secteur : Santé | poids : 26.1 % | PER : n/d | performance latente : +5.6 %\n3. Gamma Monde UCITS ETF | ISIN FR00GAMMA037 | secteur : ETF monde | poids : 10.6 % | PER : n/d | performance latente : +4.0 %\n\nOpérations fictives du scénario : ACHAT 1 × Alpha ; versement fictif : 250 €.\n\nÉvalue les 4 critères sur la structure PROJETÉE, puis donne pour chaque critère les avantages et les inconvénients du scénario par rapport à l'actuelle.",
+   "ef72a6ac1faed414"
+  ],
+  "vide": {
+   "__erreur__": "ErreurIA",
+   "message": "Portefeuille vide : rien à analyser."
+  }
+ },
+ "ia_json_et_reponses": {
+  "majuscules": {
+   "properties": {
+    "a": {
+     "type": "STRING"
+    },
+    "b": {
+     "items": {
+      "type": "NUMBER"
+     },
+     "type": "ARRAY"
+    }
+   },
+   "type": "OBJECT"
+  },
+  "parser": [
+   {
+    "a": 1
+   },
+   {
+    "__erreur__": "ErreurIA",
+    "message": "Réponse de l'IA illisible (pas de JSON)."
+   },
+   {
+    "__erreur__": "ErreurIA",
+    "message": "Réponse de l'IA illisible (JSON invalide)."
+   }
+  ],
+  "payload": {
+   "contents": [
+    {
+     "parts": [
+      {
+       "text": "q"
+      }
+     ],
+     "role": "user"
+    }
+   ],
+   "generationConfig": {
+    "maxOutputTokens": 123,
+    "responseMimeType": "application/json",
+    "responseSchema": {
+     "type": "OBJECT"
+    },
+    "thinkingConfig": {
+     "thinkingLevel": "low"
+    }
+   },
+   "systemInstruction": {
+    "parts": [
+     {
+      "text": "sys"
+     }
+    ]
+   }
+  },
+  "payload2": {
+   "contents": [
+    {
+     "parts": [
+      {
+       "text": "q"
+      }
+     ],
+     "role": "user"
+    }
+   ],
+   "generationConfig": {
+    "maxOutputTokens": 123,
+    "responseJsonSchema": {
+     "type": "object"
+    },
+    "responseMimeType": "application/json",
+    "thinkingConfig": {
+     "thinkingLevel": "low"
+    }
+   },
+   "systemInstruction": {
+    "parts": [
+     {
+      "text": "sys"
+     }
+    ]
+   }
+  },
+  "reponses": {
+   "400": {
+    "__erreur__": "ErreurIA",
+    "message": "Requête refusée par Gemini (400) : détail"
+   },
+   "401": {
+    "__erreur__": "ErreurIA",
+    "message": "Clé API Gemini refusée (vérifiez GEMINI_API_KEY)."
+   },
+   "403": {
+    "__erreur__": "ErreurIA",
+    "message": "Clé API Gemini refusée (vérifiez GEMINI_API_KEY)."
+   },
+   "404": {
+    "__erreur__": "ErreurIA",
+    "message": "Modèle « m » introuvable (vérifiez GEMINI_MODEL)."
+   },
+   "429": {
+    "__erreur__": "ErreurIA",
+    "message": "Quota Gemini atteint. Réessayez plus tard."
+   },
+   "500": {
+    "__erreur__": "ErreurIA",
+    "message": "Service Gemini momentanément indisponible. Réessayez."
+   },
+   "503": {
+    "__erreur__": "ErreurIA",
+    "message": "Service Gemini momentanément indisponible. Réessayez."
+   }
+  },
+  "texte_ok": "bc",
+  "texte_vide": {
+   "__erreur__": "ErreurIA",
+   "message": "Gemini n'a renvoyé aucune réponse exploitable (contenu bloqué ou vide)."
+  },
+  "tronquer": [
+   "un deux…",
+   "un deux"
+  ]
+ },
+ "ia_prompts_fichier": {
+  "avertissement": "Analyse générée par une IA à partir de la structure de votre PEA, à titre informatif. Ce n'est pas un conseil en investissement.",
+  "criteres": [
+   [
+    "diversification_sectorielle",
+    "Diversification sectorielle",
+    "Répartition entre secteurs économiques, en tenant compte de la composition sous-jacente des ETF. 10 = très bien diversifié, aucun secteur dominant."
+   ],
+   [
+    "capex",
+    "CAPEX",
+    "Exposition à l'intensité capitalistique : entreprises aux investissements lourds (énergie, industrie, semi-conducteurs, infrastructures, télécoms) face à des modèles peu capitalistiques. 10 = équilibre sain et dépendance maîtrisée aux cycles d'investissement ; 0 = très dépendant."
+   ],
+   [
+    "geographique",
+    "Diversification géographique",
+    "Répartition par zone d'exposition économique (France, Europe, États-Unis, émergents...), y compris via les ETF. 10 = très bien diversifié."
+   ],
+   [
+    "croissance_rendement",
+    "Croissance vs Rendement",
+    "Équilibre entre actions de croissance (réinvestissement, valorisation élevée) et actions de rendement / valeur (dividendes, valorisation modérée). 10 = mix équilibré et cohérent."
+   ]
+  ],
+  "defaut_analyse": 1623,
+  "defaut_capture": 1366,
+  "defaut_chat": 1042,
+  "defaut_scen": 2106,
+  "exemple": {
+   "conclusion": "Structure globalement équilibrée, sans ligne ou secteur écrasant le reste.",
+   "criteres": [
+    {
+     "cle": "diversification_sectorielle",
+     "label": "Diversification sectorielle",
+     "note": 7,
+     "synthese": "Bien réparti, léger poids du luxe et de l'industrie."
+    },
+    {
+     "cle": "capex",
+     "label": "CAPEX",
+     "note": 6,
+     "synthese": "Énergie et industrie capitalistiques compensées par santé et luxe."
+    },
+    {
+     "cle": "geographique",
+     "label": "Diversification géographique",
+     "note": 8,
+     "synthese": "ETF monde et émergents complètent un cœur européen."
+    },
+    {
+     "cle": "croissance_rendement",
+     "label": "Croissance vs Rendement",
+     "note": 7,
+     "synthese": "Mix équilibré entre dividendes réguliers et valeurs de croissance."
+    }
+   ],
+   "modele": "exemple fictif"
+  },
+  "exemple_scen": {
+   "conclusion": "Scénario prudent : diversifie sans bouleverser la structure actuelle.",
+   "criteres": [
+    {
+     "avantages": [
+      "Poids du luxe ramené sous les 20 %",
+      "Santé défensive désormais 2e ligne"
+     ],
+     "cle": "diversification_sectorielle",
+     "inconvenients": [
+      "Exposition industrielle toujours élevée"
+     ],
+     "label": "Diversification sectorielle",
+     "note": 8,
+     "synthese": "La santé renforcée réduit la domination du luxe."
+    },
+    {
+     "avantages": [
+      "Recul relatif de l'énergie dans le total"
+     ],
+     "cle": "capex",
+     "inconvenients": [
+      "Semi-conducteurs toujours en poids fort"
+     ],
+     "label": "CAPEX",
+     "note": 6,
+     "synthese": "Peu de changement : énergie et industrie toujours présentes."
+    },
+    {
+     "avantages": [
+      "Aucun changement"
+     ],
+     "cle": "geographique",
+     "inconvenients": [
+      "Aucun changement"
+     ],
+     "label": "Diversification géographique",
+     "note": 8,
+     "synthese": "Inchangée : cœur européen complété par les ETF monde."
+    },
+    {
+     "avantages": [
+      "Rendement du portefeuille un peu plus régulier"
+     ],
+     "cle": "croissance_rendement",
+     "inconvenients": [
+      "Moins d'exposition aux valeurs de croissance"
+     ],
+     "label": "Croissance vs Rendement",
+     "note": 7,
+     "synthese": "Léger basculement vers le rendement (santé, dividendes)."
+    }
+   ],
+   "modele": "exemple fictif"
+  },
+  "schema": {
+   "properties": {
+    "conclusion": {
+     "type": "string"
+    },
+    "criteres": {
+     "items": {
+      "properties": {
+       "cle": {
+        "enum": [
+         "diversification_sectorielle",
+         "capex",
+         "geographique",
+         "croissance_rendement"
+        ],
+        "type": "string"
+       },
+       "note": {
+        "type": "integer"
+       },
+       "synthese": {
+        "type": "string"
+       }
+      },
+      "required": [
+       "cle",
+       "note",
+       "synthese"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "criteres",
+    "conclusion"
+   ],
+   "type": "object"
+  },
+  "schema_capture": {
+   "properties": {
+    "lignes": {
+     "items": {
+      "properties": {
+       "isin_capture": {
+        "type": "string"
+       },
+       "isin_ia": {
+        "type": "string"
+       },
+       "nom": {
+        "type": "string"
+       },
+       "prm": {
+        "type": "number"
+       },
+       "quantite": {
+        "type": "number"
+       },
+       "valeur": {
+        "type": "number"
+       }
+      },
+      "required": [
+       "nom",
+       "isin_capture",
+       "isin_ia",
+       "quantite",
+       "prm",
+       "valeur"
+      ],
+      "type": "object"
+     },
+     "type": "array"
+    }
+   },
+   "required": [
+    "lignes"
+   ],
+   "type": "object"
+  },
+  "sections": [
+   "analyse",
+   "chat",
+   "scenario"
+  ],
+  "tailles": {
+   "analyse": 1589,
+   "chat": 1196,
+   "scenario": 1232
+  }
+ },
+ "ia_reessai_et_limites": {
+  "captures": [
+   {
+    "__erreur__": "ErreurIA",
+    "message": "Aucune capture à analyser."
+   },
+   {
+    "__erreur__": "ErreurIA",
+    "message": "Format d'image non pris en charge (PNG, JPEG ou WebP)."
+   },
+   {
+    "__erreur__": "ErreurIA",
+    "message": "Maximum 8 captures par import."
+   },
+   {
+    "__erreur__": "ErreurIA",
+    "message": "Images trop volumineuses (15 Mo maximum au total)."
+   }
+  ],
+  "definitif": [
+   {
+    "__erreur__": "ErreurIA",
+    "message": "Clé API refusée"
+   },
+   100
+  ],
+  "instable": [
+   "bon",
+   2
+  ],
+  "limites": [
+   30,
+   100,
+   30,
+   30,
+   8,
+   15728640,
+   "gemini-3.6-flash",
+   "v1"
+  ]
+ },
+ "ia_validation": {
+  "bornes": [
+   0,
+   10,
+   4,
+   4
+  ],
+  "manquant": {
+   "__erreur__": "ErreurIA",
+   "message": "Réponse de l'IA incomplète (critères manquants : geographique, croissance_rendement)."
+  },
+  "note_globale": 8.5,
+  "note_ko": {
+   "__erreur__": "ErreurIA",
+   "message": "Réponse de l'IA inattendue (note invalide)."
+  },
+  "pas_dict": {
+   "__erreur__": "ErreurIA",
+   "message": "Réponse de l'IA inattendue (structure)."
+  },
+  "res": {
+   "conclusion": "phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase…",
+   "criteres": [
+    {
+     "avantages": [
+      "a a a a a a a a a a a a…",
+      "b"
+     ],
+     "cle": "diversification_sectorielle",
+     "inconvenients": [
+      "z"
+     ],
+     "label": "Diversification sectorielle",
+     "note": 7,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    },
+    {
+     "avantages": [
+      "a a a a a a a a a a a a…",
+      "b"
+     ],
+     "cle": "capex",
+     "inconvenients": [
+      "z"
+     ],
+     "label": "CAPEX",
+     "note": 8,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    },
+    {
+     "avantages": [
+      "a a a a a a a a a a a a…",
+      "b"
+     ],
+     "cle": "geographique",
+     "inconvenients": [
+      "z"
+     ],
+     "label": "Diversification géographique",
+     "note": 9,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    },
+    {
+     "avantages": [
+      "a a a a a a a a a a a a…",
+      "b"
+     ],
+     "cle": "croissance_rendement",
+     "inconvenients": [
+      "z"
+     ],
+     "label": "Croissance vs Rendement",
+     "note": 10,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    }
+   ]
+  },
+  "simple": {
+   "conclusion": "phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase phrase…",
+   "criteres": [
+    {
+     "cle": "diversification_sectorielle",
+     "label": "Diversification sectorielle",
+     "note": 7,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    },
+    {
+     "cle": "capex",
+     "label": "CAPEX",
+     "note": 8,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    },
+    {
+     "cle": "geographique",
+     "label": "Diversification géographique",
+     "note": 9,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    },
+    {
+     "cle": "croissance_rendement",
+     "label": "Croissance vs Rendement",
+     "note": 10,
+     "synthese": "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot…"
+    }
+   ]
+  }
+ },
+ "import_controle_lecture": [
+  "",
+  "⚠️ Lecture à vérifier : valeur ÷ quantité s'écarte de 50 % au cours. ",
+  "",
+  "⚠️ Lecture à vérifier : valeur ÷ quantité s'écarte de 300 % au PRM. ",
+  "",
+  ""
+ ],
+ "import_noms": {
+  "normaliser_nom": [
+   [
+    [
+     "amundi",
+     "pea",
+     "monde"
+    ],
+    false
+   ],
+   [
+    [
+     "societe",
+     "generale"
+    ],
+    true
+   ],
+   [
+    [],
+    false
+   ]
+  ],
+  "proches": [
+   true,
+   true,
+   false,
+   true
+  ],
+  "score": [
+   1.0,
+   0.666666667
+  ]
+ },
+ "import_normaliser": {
+  "avert": [
+   "ISIN « XX0000000000 » invalide ignoré pour « Inconnue Corp ».",
+   "Ligne ignorée (illisible ou incomplète) : « Illisible »."
+  ],
+  "image": [
+   "image/png",
+   "image/jpeg",
+   "image/webp",
+   null,
+   null
+  ],
+  "lignes": [
+   {
+    "isin_capture": "FR00ALPHA014",
+    "isin_ia": null,
+    "nom": "Alpha SA",
+    "prm": 107.5,
+    "quantite": 11.0,
+    "valeur": 1540.0
+   },
+   {
+    "isin_capture": null,
+    "isin_ia": "DE00BETA0021",
+    "nom": "Beta Industries AG",
+    "prm": 30.25,
+    "quantite": 20.0,
+    "valeur": 600.0
+   },
+   {
+    "isin_capture": null,
+    "isin_ia": null,
+    "nom": "Gamma Monde UCITS…",
+    "prm": 50.0,
+    "quantite": 5.0,
+    "valeur": 260.0
+   },
+   {
+    "isin_capture": null,
+    "isin_ia": null,
+    "nom": "Inconnue Corp",
+    "prm": 9.9,
+    "quantite": 3.0,
+    "valeur": 30.0
+   },
+   {
+    "isin_capture": null,
+    "isin_ia": null,
+    "nom": "Delta Santé NV",
+    "prm": 75.75,
+    "quantite": 8.0,
+    "valeur": 640.0
+   },
+   {
+    "isin_capture": null,
+    "isin_ia": "ITEPSILON059",
+    "nom": "Machin",
+    "prm": 12.5,
+    "quantite": 150.0,
+    "valeur": 1900.0
+   }
+  ],
+  "mauvais": [
+   [],
+   [
+    "Réponse de l'IA inattendue : aucune liste de lignes."
+   ]
+  ],
+  "nombre": [
+   1859.86,
+   1859.86,
+   12.0,
+   null,
+   null,
+   null,
+   3.0,
+   null,
+   null
+  ],
+  "none": [
+   [],
+   [
+    "Réponse de l'IA inattendue : aucune liste de lignes."
+   ]
+  ]
+ },
+ "import_preparer_et_ecarts": {
+  "ecarts_apres": {
+   "__df__": true,
+   "colonnes": [
+    "isin",
+    "nom",
+    "qte_base",
+    "qte_courtier",
+    "prm_base",
+    "prm_courtier",
+    "ecart_prm_pct"
+   ],
+   "lignes": [
+    [
+     "ISIN ?",
+     "Inconnue Corp",
+     0.0,
+     3.0,
+     null,
+     9.9,
+     null
+    ]
+   ]
+  },
+  "ecarts_avant": {
+   "__df__": true,
+   "colonnes": [
+    "isin",
+    "nom",
+    "qte_base",
+    "qte_courtier",
+    "prm_base",
+    "prm_courtier",
+    "ecart_prm_pct"
+   ],
+   "lignes": [
+    [
+     "DE00BETA0021",
+     "Beta Industries AG",
+     0.0,
+     20.0,
+     null,
+     30.25,
+     null
+    ],
+    [
+     "ISIN ?",
+     "Inconnue Corp",
+     0.0,
+     3.0,
+     null,
+     9.9,
+     null
+    ]
+   ]
+  },
+  "err2": [],
+  "erreurs": [
+   "Ligne 2 (Inconnue Corp) : ISIN invalide ou manquant.",
+   "Ligne 2 (Inconnue Corp) : date dans le futur."
+  ],
+  "ins": {
+   "__df__": true,
+   "colonnes": [
+    "date",
+    "isin",
+    "type",
+    "quantite",
+    "prix",
+    "frais"
+   ],
+   "lignes": [
+    [
+     "2025-06-02T00:00:00",
+     "DE00BETA0021",
+     "ACHAT",
+     20.0,
+     30.25,
+     0.0
+    ]
+   ]
+  },
+  "n_nouvelles": 2
+ },
+ "import_resoudre_et_proposer": {
+  "ops": {
+   "__df__": true,
+   "colonnes": [
+    "valider",
+    "date",
+    "isin",
+    "nom",
+    "type",
+    "quantite",
+    "prix",
+    "frais",
+    "note"
+   ],
+   "lignes": [
+    [
+     true,
+     "2025-06-02T00:00:00",
+     "DE00BETA0021",
+     "Beta Industries AG",
+     "ACHAT",
+     20.0,
+     30.25,
+     0.0,
+     "Prix déduit du PRM du courtier (frais inclus)."
+    ],
+    [
+     false,
+     "2025-06-02T00:00:00",
+     "",
+     "Inconnue Corp",
+     "ACHAT",
+     3.0,
+     9.9,
+     0.0,
+     "ISIN introuvable : à renseigner puis cocher."
+    ]
+   ]
+  },
+  "releve": [
+   {
+    "isin": "FR00ALPHA014",
+    "isin_capture": "FR00ALPHA014",
+    "isin_ia": null,
+    "nom": "Alpha SA",
+    "prm": 107.5,
+    "quantite": 11.0,
+    "source_isin": "capture",
+    "valeur": 1540.0
+   },
+   {
+    "isin": "DE00BETA0021",
+    "isin_capture": null,
+    "isin_ia": "DE00BETA0021",
+    "nom": "Beta Industries AG",
+    "prm": 30.25,
+    "quantite": 20.0,
+    "source_isin": "nom",
+    "valeur": 600.0
+   },
+   {
+    "isin": "FR00GAMMA037",
+    "isin_capture": null,
+    "isin_ia": null,
+    "nom": "Gamma Monde UCITS…",
+    "prm": 50.0,
+    "quantite": 5.0,
+    "source_isin": "nom",
+    "valeur": 260.0
+   },
+   {
+    "isin": null,
+    "isin_capture": null,
+    "isin_ia": null,
+    "nom": "Inconnue Corp",
+    "prm": 9.9,
+    "quantite": 3.0,
+    "source_isin": null,
+    "valeur": 30.0
+   },
+   {
+    "isin": "NL00DELTA048",
+    "isin_capture": null,
+    "isin_ia": null,
+    "nom": "Delta Santé NV",
+    "prm": 75.75,
+    "quantite": 8.0,
+    "source_isin": "nom",
+    "valeur": 640.0
+   },
+   {
+    "isin": "ITEPSILON059",
+    "isin_capture": null,
+    "isin_ia": "ITEPSILON059",
+    "nom": "Machin",
+    "prm": 12.5,
+    "quantite": 150.0,
+    "source_isin": "ia",
+    "valeur": 1900.0
+   }
+  ]
+ },
+ "technique_courbes": {
+  "pb": [
+   0.7,
+   0.5,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   -0.5,
+   -0.7,
+   -0.8,
+   -0.9,
+   -1.0,
+   -1.0,
+   -1.0
+  ],
+  "poids": {
+   "bb": 0.2,
+   "mm": 0.4,
+   "rsi": 0.2,
+   "stoch": 0.2
+  },
+  "rsi": [
+   1.0,
+   1.0,
+   1.0,
+   0.625,
+   0.5,
+   0.25,
+   0.0,
+   0.0,
+   0.0,
+   -0.25,
+   -0.5,
+   -0.75,
+   -1.0,
+   -1.0
+  ],
+  "seuils": [
+   6.0,
+   4.0,
+   0.5,
+   20
+  ],
+  "stoch": [
+   1.0,
+   1.0,
+   0.75,
+   0.375,
+   0.25,
+   0.125,
+   0.0,
+   0.0,
+   0.0,
+   -0.125,
+   -0.25,
+   -0.5,
+   -0.75,
+   -1.0
+  ]
+ },
+ "technique_indicateurs": {
+  "bb": {
+   "__df__": true,
+   "colonnes": [
+    "milieu",
+    "haut",
+    "bas",
+    "pb"
+   ],
+   "lignes": [
+    [
+     102.616398816,
+     105.326525047,
+     99.906272585,
+     0.560856961
+    ],
+    [
+     102.681239412,
+     105.328384267,
+     100.034094558,
+     0.493488907
+    ],
+    [
+     102.830000179,
+     105.551521134,
+     100.108479223,
+     0.821281666
+    ]
+   ]
+  },
+  "constante": {
+   "__serie__": true,
+   "index": [
+    38,
+    39
+   ],
+   "valeurs": [
+    "NaN",
+    "NaN"
+   ]
+  },
+  "rsi_court": {
+   "__serie__": true,
+   "index": [
+    "2024-06-03T00:00:00",
+    "2024-06-04T00:00:00",
+    "2024-06-05T00:00:00",
+    "2024-06-06T00:00:00",
+    "2024-06-07T00:00:00",
+    "2024-06-10T00:00:00",
+    "2024-06-11T00:00:00",
+    "2024-06-12T00:00:00",
+    "2024-06-13T00:00:00",
+    "2024-06-14T00:00:00"
+   ],
+   "valeurs": [
+    "NaN",
+    "NaN",
+    "NaN",
+    "NaN",
+    "NaN",
+    "NaN",
+    "NaN",
+    "NaN",
+    "NaN",
+    "NaN"
+   ]
+  },
+  "rsi_fin": {
+   "__serie__": true,
+   "index": [
+    "2025-05-26T00:00:00",
+    "2025-05-27T00:00:00",
+    "2025-05-28T00:00:00",
+    "2025-05-29T00:00:00",
+    "2025-05-30T00:00:00"
+   ],
+   "valeurs": [
+    53.582056889,
+    52.690503673,
+    50.782639501,
+    49.409571718,
+    57.409611188
+   ]
+  },
+  "sma20_fin": {
+   "__serie__": true,
+   "index": [
+    "2025-05-28T00:00:00",
+    "2025-05-29T00:00:00",
+    "2025-05-30T00:00:00"
+   ],
+   "valeurs": [
+    102.616398816,
+    102.681239412,
+    102.830000179
+   ]
+  },
+  "stoch_d": {
+   "__serie__": true,
+   "index": [
+    "2025-05-27T00:00:00",
+    "2025-05-28T00:00:00",
+    "2025-05-29T00:00:00",
+    "2025-05-30T00:00:00"
+   ],
+   "valeurs": [
+    54.452513412,
+    58.246708748,
+    54.806726931,
+    52.360470901
+   ]
+  },
+  "stoch_k": {
+   "__serie__": true,
+   "index": [
+    "2025-05-27T00:00:00",
+    "2025-05-28T00:00:00",
+    "2025-05-29T00:00:00",
+    "2025-05-30T00:00:00"
+   ],
+   "valeurs": [
+    62.600722104,
+    53.571945076,
+    48.247513611,
+    55.261954014
+   ]
+  }
+ },
+ "technique_series": {
+  "baisse": {
+   "date": "2025-05-30T00:00:00",
+   "dernier": 57.551888534,
+   "emoji": "🔴",
+   "indicateurs": [
+    {
+     "attenue": false,
+     "cle": "mm",
+     "detail": "cours au-dessus de 0 moyenne sur 3 (20, 50, 200 jours)",
+     "emoji": "🔴",
+     "label": "Moyennes mobiles",
+     "poids": 0.4,
+     "score": -1.0,
+     "score_note": -1.0,
+     "verdict": "Vendre"
+    },
+    {
+     "attenue": true,
+     "cle": "rsi",
+     "detail": "26 (survente < 30, surachat > 70)",
+     "emoji": "🟢",
+     "label": "RSI",
+     "poids": 0.2,
+     "score": 0.600472001,
+     "score_note": 0.300236,
+     "verdict": "Acheter"
+    },
+    {
+     "attenue": true,
+     "cle": "stoch",
+     "detail": "24 (survente < 20, surachat > 80)",
+     "emoji": "🟡",
+     "label": "Stochastique",
+     "poids": 0.2,
+     "score": 0.38925654,
+     "score_note": 0.19462827,
+     "verdict": "Neutre"
+    },
+    {
+     "attenue": false,
+     "cle": "bb",
+     "detail": "28 % (survente < 0 %, surachat > 100 %)",
+     "emoji": "🟡",
+     "label": "Bollinger",
+     "poids": 0.2,
+     "score": 0.0,
+     "score_note": 0.0,
+     "verdict": "Neutre"
+    }
+   ],
+   "note": 3.49486427,
+   "ok": true,
+   "score": -0.301027146,
+   "verdict": "Vendre"
+  },
+  "colonnes": {
+   "ok": false,
+   "raison": "Historique insuffisant (au moins 20 séances requises)."
+  },
+  "court": {
+   "date": "2024-07-12T00:00:00",
+   "dernier": 102.303338088,
+   "emoji": "🟢",
+   "indicateurs": [
+    {
+     "attenue": false,
+     "cle": "mm",
+     "detail": "cours au-dessus de 1 moyenne sur 1 (20 jours)",
+     "emoji": "🟢",
+     "label": "Moyennes mobiles",
+     "poids": 0.4,
+     "score": 1.0,
+     "score_note": 1.0,
+     "verdict": "Acheter"
+    },
+    {
+     "attenue": false,
+     "cle": "rsi",
+     "detail": "56 (survente < 30, surachat > 70)",
+     "emoji": "🟡",
+     "label": "RSI",
+     "poids": 0.2,
+     "score": 0.0,
+     "score_note": 0.0,
+     "verdict": "Neutre"
+    },
+    {
+     "attenue": true,
+     "cle": "stoch",
+     "detail": "80 (survente < 20, surachat > 80)",
+     "emoji": "🟡",
+     "label": "Stochastique",
+     "poids": 0.2,
+     "score": -0.488905735,
+     "score_note": -0.244452867,
+     "verdict": "Neutre"
+    },
+    {
+     "attenue": true,
+     "cle": "bb",
+     "detail": "84 % (survente < 0 %, surachat > 100 %)",
+     "emoji": "🟡",
+     "label": "Bollinger",
+     "poids": 0.2,
+     "score": -0.104340069,
+     "score_note": -0.052170034,
+     "verdict": "Neutre"
+    }
+   ],
+   "note": 6.703377098,
+   "ok": true,
+   "score": 0.34067542,
+   "verdict": "Acheter"
+  },
+  "hausse": {
+   "date": "2025-05-30T00:00:00",
+   "dernier": 188.02861066,
+   "emoji": "🟢",
+   "indicateurs": [
+    {
+     "attenue": false,
+     "cle": "mm",
+     "detail": "cours au-dessus de 3 moyennes sur 3 (20, 50, 200 jours)",
+     "emoji": "🟢",
+     "label": "Moyennes mobiles",
+     "poids": 0.4,
+     "score": 1.0,
+     "score_note": 1.0,
+     "verdict": "Acheter"
+    },
+    {
+     "attenue": true,
+     "cle": "rsi",
+     "detail": "68 (survente < 30, surachat > 70)",
+     "emoji": "🟡",
+     "label": "RSI",
+     "poids": 0.2,
+     "score": -0.389238868,
+     "score_note": -0.194619434,
+     "verdict": "Neutre"
+    },
+    {
+     "attenue": true,
+     "cle": "stoch",
+     "detail": "92 (survente < 20, surachat > 80)",
+     "emoji": "🔴",
+     "label": "Stochastique",
+     "poids": 0.2,
+     "score": -0.801847064,
+     "score_note": -0.400923532,
+     "verdict": "Vendre"
+    },
+    {
+     "attenue": true,
+     "cle": "bb",
+     "detail": "97 % (survente < 0 %, surachat > 100 %)",
+     "emoji": "🟡",
+     "label": "Bollinger",
+     "poids": 0.2,
+     "score": -0.435199998,
+     "score_note": -0.217599999,
+     "verdict": "Neutre"
+    }
+   ],
+   "note": 6.186857035,
+   "ok": true,
+   "score": 0.237371407,
+   "verdict": "Acheter"
+  },
+  "none": {
+   "ok": false,
+   "raison": "Historique insuffisant (au moins 20 séances requises)."
+  },
+  "plat": {
+   "date": "2025-05-30T00:00:00",
+   "dernier": 106.225348203,
+   "emoji": "🟢",
+   "indicateurs": [
+    {
+     "attenue": false,
+     "cle": "mm",
+     "detail": "cours au-dessus de 3 moyennes sur 3 (20, 50, 200 jours)",
+     "emoji": "🟢",
+     "label": "Moyennes mobiles",
+     "poids": 0.4,
+     "score": 1.0,
+     "score_note": 1.0,
+     "verdict": "Acheter"
+    },
+    {
+     "attenue": true,
+     "cle": "rsi",
+     "detail": "68 (survente < 30, surachat > 70)",
+     "emoji": "🟡",
+     "label": "RSI",
+     "poids": 0.2,
+     "score": -0.382594353,
+     "score_note": -0.191297177,
+     "verdict": "Neutre"
+    },
+    {
+     "attenue": false,
+     "cle": "stoch",
+     "detail": "53 (survente < 20, surachat > 80)",
+     "emoji": "🟡",
+     "label": "Stochastique",
+     "poids": 0.2,
+     "score": 0.0,
+     "score_note": 0.0,
+     "verdict": "Neutre"
+    },
+    {
+     "attenue": false,
+     "cle": "bb",
+     "detail": "73 % (survente < 0 %, surachat > 100 %)",
+     "emoji": "🟡",
+     "label": "Bollinger",
+     "poids": 0.2,
+     "score": 0.0,
+     "score_note": 0.0,
+     "verdict": "Neutre"
+    }
+   ],
+   "note": 6.808702823,
+   "ok": true,
+   "score": 0.361740565,
+   "verdict": "Acheter"
+  },
+  "resume": [
+   "🟢 Acheter · 6,2/10",
+   "",
+   ""
+  ],
+  "trop_court": {
+   "ok": false,
+   "raison": "Historique insuffisant (au moins 20 séances requises)."
+  }
+ }
+}

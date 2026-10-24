@@ -1,7 +1,9 @@
-streamlit>=1.40
-pandas>=2.0
-numpy
-plotly>=5.20
-yfinance>=0.2.50
-supabase>=2.0
-requests>=2.31
+# Versions épinglées = celles testées (voir docs/MIGRATION.md). Les changer = relancer `pytest` puis tester l'app.
+# Streamlit >= 1.59 est nécessaire pour les onglets paresseux (st.tabs(..., on_change="rerun") et tab.open).
+streamlit==1.66.1
+pandas==3.1.0
+numpy==2.5.4
+plotly==7.1.0
+yfinance==1.7.0
+supabase==2.33.0
+requests==2.34.2

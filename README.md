@@ -24,39 +24,40 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
   « grand écran » (colonnes, grilles) doit se replier en une colonne sur téléphone.
 - **Aucun secret dans le dépôt** (tout passe par `st.secrets`) et **aucune donnée réelle** : le dépôt est public.
   Les tests et exemples n'utilisent que des données fictives.
-- **Cloisonnement par compte** : toute lecture/écriture Supabase est filtrée par `user_id` dans `db.py`.
+- **Cloisonnement par compte** : toute lecture/écriture Supabase est filtrée par `user_id` dans `pea/data/repo.py`.
   Le compte `demo` ne lit jamais les données d'un autre compte et **n'appelle jamais l'IA** (garde côté UI *et* serveur).
-  **Seule exception** : `db.performances_partagees()` (voir « Partage de la performance »).
+  **Seule exception** : la performance partagée (`pea/services/partage.py`) (voir « Partage de la performance »).
 - **Ne pas modifier les règles métier** ci-dessous sans demande explicite.
-- Les fichiers `.py` du dépôt vont **ensemble** : un déploiement partiel (ex. `app.py` sans `donnees.py`) plante.
+- Les fichiers `.py` du dépôt vont **ensemble** : un déploiement partiel (ex. `app.py` sans `pea/`) plante.
 
 ---
 
 ## Architecture
 
+Refonte en cours (branche `refonte/socle-2026-10`) : voir **docs/MIGRATION.md**, qui décrit l'API des modules
+et ce qui reste à faire. Dépendances à sens unique : `domain` ← `data` ← `services` ← interface.
+
 | Fichier | Rôle |
 |---|---|
-| `app.py` | Interface : 5 onglets (Portefeuille · Historique · Projet · Watchlist · Saisie), cartes de lignes, blocs IA/chat (dans un dépliant), import par captures |
-| `style.py` | Présentation : CSS adaptatif (largeur, grilles de cartes, bandeau démo cliquable), palette et habillage communs des graphiques Plotly (police, nombres français, infobulles) |
-| `calculs.py` | Calculs purs : positions/PRM, plus-values, cash, synthèse, TWR, reconstitution d'historique, scénarios, répartitions, notes relatives 1-10 (`note_relative`) |
-| `technique.py` | Indicateurs techniques purs (MM, RSI, stochastique, Bollinger) et note /10 |
-| `concurrents.py` | Concurrent d'un titre : suggestion IA validée, saisie manuelle, comparaison des multiples (réseau injecté) |
-| `import_ecran.py` | Import par captures : nettoyage du JSON Gemini, résolution des ISIN, opérations proposées (logique pure) |
-| `llm.py` | Gemini : analyse, chat, lecture de captures, helpers HTTP communs (`appeler_json`, `avec_reessai`), quotas |
-| `prompts.md` | Prompts éditables (sections `## analyse`, `## scenario`, `## chat`, `## capture`, `## concurrent`) ; section absente = défaut du code |
-| `donnees.py` | Yahoo Finance : cours, fondamentaux, bougies, résolution ISIN → ticker, caches par titre |
-| `db.py` | Supabase : lecture paginée en cache, écritures, upserts, préchargement parallèle |
-| `auth.py` | Connexion (comptes lus dans `st.secrets`), connexion automatique au compte demo (interrupteur), limitation des essais, nettoyage de l'état au changement de compte |
-| `schema.py` | Colonnes métier de chaque table, ordre de tri, colonnes numériques |
-| `schema.sql` | Schéma Supabase complet (idempotent, RLS activée) |
-| `seed_demo.sql` | Portefeuille fictif du compte `demo` (à exécuter **une seule fois**) |
-| `secrets.toml.example` | Modèle des secrets |
+| `app.py` | Interface : 5 onglets paresseux (Portefeuille · Historique · Projet · Watchlist · Saisie), cartes, blocs IA/chat, import par captures |
+| `pea/config.py` | Constantes (quotas, seuils, durées de cache, indices) et lecture typée des secrets |
+| `pea/domain/` | Pur, testé : `calculs`, `technique`, `import_ecran`, `concurrents`, `formats`, `fondamentaux`, `nombres`, `textes` |
+| `pea/data/repo.py` | **Seule** porte vers Supabase : `user_id` forcé, cache par compte, chargement en un aller-retour, démo en lecture seule |
+| `pea/data/marche.py` | Yahoo Finance : téléchargement groupé, cache mémoire + `marche_cache` partagé, arrière-plan, recul après 429 |
+| `pea/data/schema.py` | Colonnes métier de chaque table (cohérence avec le SQL vérifiée par les tests) |
+| `pea/services/` | `auth` (mots de passe hachés), `quotas` (IA), `ia/` (prompts, contexte, validation, client HTTP), `partage`, `suivi` |
+| `pea/ui/style.py` | CSS adaptatif, palette et habillage des graphiques Plotly |
+| `prompts.md` | Prompts éditables (sections `## analyse`, `## scenario`, `## chat`, `## capture`, `## concurrent`) |
+| `sql/schema.sql`, `sql/migrations/` | Schéma Supabase et migrations additives, idempotentes |
+| `sql/seed_demo.sql` | Portefeuille fictif du compte `demo` (à exécuter **une seule fois**) |
+| `tests/` | Caractérisation des règles métier, isolation des comptes, AppTest multi-comptes, mesures |
 
-**Ordre de lecture conseillé** : `calculs.py` → `donnees.py` → `db.py` → `app.py` → `llm.py`.
+**Ordre de lecture conseillé** : `docs/MIGRATION.md` → `pea/domain/calculs.py` → `pea/data/repo.py` → `pea/data/marche.py` → `app.py`.
 
 **Tables** : `transactions`, `dividendes`, `versements`, `secteurs`, `tickers` (ISIN → ticker, dernier prix, concurrent),
 `snapshots` (valeur et apports par jour), `watchlist`, `scenarios`, `scenario_trades`, `analyses_ia`, `analyses_scen`,
-`chat_log` (une ligne par message, pour le quota), `partage` (choix de partage de la performance + pseudo). Toutes portent un `user_id`.
+`chat_log` (ancien compteur du chat), `usage_ia` (compteurs de quotas), `partage` (choix de partage de la performance + pseudo).
+Toutes portent un `user_id`, sauf `marche_cache` (données publiques de Yahoo partagées entre comptes).
 
 ---
 
@@ -68,7 +69,7 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 - **Apports nets** = versements − retraits. Une `PV_ANTERIEURE` (plus-value antérieure réinvestie) alimente le cash
   mais **n'est pas un apport**.
 - **Plafond PEA** : 150 000 € de versements cumulés. **Alerte de concentration** : une ligne > 25 % des titres.
-- **Historique** : un point (`snapshots`) est enregistré à chaque visite en semaine ; reconstituable depuis les
+- **Historique** : un point (`snapshots`) est enregistré lors des visites en semaine (au plus tous les quarts d'heure) ; reconstituable depuis les
   transactions (Saisie › Maintenance). Performance vs indice en **TWR** base 100 (MSCI World CW8, CAC 40, Euro Stoxx 50).
 - **Statut d'un cours** : `live` > `obsolète` (dernier prix connu en base) > `estimé` (prix de revient).
 - **Scénarios (onglet Projet)** : opérations fictives au dernier cours, rejouées sur le journal réel ; le réel n'est
@@ -79,7 +80,7 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 Case sous le 2ᵉ graphique, **décochée par défaut** (table `partage` : `partage`, `pseudo`, migration dans `schema.sql`).
 Le graphique « Performance vs indice » ajoute, en plus de l'indice, la courbe TWR des **autres comptes** ayant coché la case
 (sélecteur d'utilisateurs, tous affichés par défaut) — indépendamment du choix de l'utilisateur lui-même de partager.
-- Seule l'**indice TWR base 100** quitte `db.py` (`performances_partagees`) : jamais valeur, apports ni positions.
+- Seul l'**indice TWR base 100** quitte `pea/services/partage.py` : jamais valeur, apports ni positions.
 - Exclus : compte `demo` (ne voit rien, ne partage rien), soi-même, comptes absents des secrets. Pseudo vide = « Anonyme » ;
   pseudos identiques suffixés `(2)`… Cache 2 min. Décocher coupe le partage dès l'expiration du cache.
 - Courbes alignées sur la période choisie ; un ami dont l'historique commence plus tard démarre à 100 à son 1er point.
@@ -97,14 +98,14 @@ négatifs ni d'échelle log.
   Séparation à 5,5 ; il faut au moins 3 actions. La phrase sous le graphique donne la règle chiffrée du portefeuille.
 - Les notes sont **relatives** : ajouter ou retirer une ligne les fait bouger ; non comparables d'un portefeuille à l'autre.
 
-### Indicateurs techniques (`technique.py`)
+### Indicateurs techniques (`pea/domain/technique.py`)
 Sélecteur *Fondamentaux | Indicateurs techniques* dans Portefeuille, Projet et Watchlist ; les bougies (~1 an) ne
 sont téléchargées que si la vue technique est choisie. Chaque indicateur a un score −1…+1 ; **note /10 = 5 + 5 ×
 moyenne pondérée** (MM 40 %, RSI 20 %, stochastique 20 %, Bollinger 20 %) ; verdict ≥ 6 Acheter, ≤ 4 Vendre.
 Filtre de tendance : en tendance nette, les oscillateurs contraires comptent pour moitié. Signal indicatif, pas un
 conseil. Constantes réglables en tête du module.
 
-### Concurrent (`concurrents.py`)
+### Concurrent (`pea/domain/concurrents.py`, IA : `pea/services/ia/concurrent.py`)
 Un seul concurrent par action (pas par ETF), colonnes `tickers.concurrent_*`. Suggestion IA **une fois** à la création
 d'un titre (hors import, maintenance, démo, ETF), puis sur demande ; on garde le premier candidat dont l'ISIN passe le
 contrôle Luhn, est résolu par Yahoo **et** dont le nom ressemble au nom annoncé (garde-fou anti-ISIN halluciné).
@@ -129,8 +130,9 @@ propose des achats/ventes modifiables ; **rien n'est écrit avant « ✅ Enregis
   en € de positions. **Exceptions** : l'import par captures envoie les **images** telles quelles (quantités et montants
   visibles ; l'UI le dit) ; le chat reçoit aussi les dividendes perçus par ligne.
 - Palier gratuit : Google peut réutiliser les contenus envoyés. N'y envoyez rien de plus sensible.
-- Quotas dans `llm.py` (source unique) : analyses 30/jour/compte, chat 100/jour/compte, imports par captures 30 et
-  suggestions de concurrent 30 par session. Les vraies limites sont celles de Google (par projet et par modèle).
+- Quotas dans `pea/config.py` (source unique), comptés en base (`usage_ia`) : analyses 30/jour/compte, chat 100,
+  imports par captures 30, suggestions de concurrent 30 ; plafond global de 300 appels/jour (secret
+  `QUOTA_IA_GLOBAL_PAR_JOUR`), 6 appels/minute par compte, 3 appels simultanés. Les vraies limites sont celles de Google.
 - Modèle par défaut `gemini-3.6-flash`, surchargeable par le secret `GEMINI_MODEL`.
 - L'IA donne un avis sur la **structure** ; jamais d'ordre d'achat/vente, de prévision chiffrée ni de conseil fiscal.
 
@@ -140,70 +142,51 @@ propose des achats/ventes modifiables ; **rien n'est écrit avant « ✅ Enregis
 
 ```bash
 git clone https://github.com/Michallet/Suivi_PEA.git && cd Suivi_PEA
-pip install -r requirements.txt
-mkdir -p .streamlit && cp secrets.toml.example .streamlit/secrets.toml   # puis éditer
+pip install -r requirements-dev.txt      # requirements.txt + pytest
+cp secrets.toml.example .streamlit/secrets.toml   # puis éditer ; ce fichier est ignoré par Git
+python -m pytest                          # tous les tests (données fictives, aucun réseau)
 streamlit run app.py
 ```
 
-**Secrets** (`.streamlit/secrets.toml` en local, *Settings › Secrets* sur Streamlit Cloud ; **jamais dans Git**) :
+`.streamlit/config.toml` est versionné (XSRF actif, upload ≤ 20 Mo, aucune trace d'erreur dans le navigateur) ;
+`.streamlit/secrets.toml` ne l'est **jamais** (`.gitignore`).
 
-```toml
-SUPABASE_URL = "https://xxxx.supabase.co"
-SUPABASE_KEY = "clé service_role"      # secret serveur uniquement, jamais la clé anon
-GEMINI_API_KEY = ""                    # facultatif ; inactif pour le compte demo
-# GEMINI_MODEL = "gemini-3.6-flash"    # facultatif
-# DEBUG_PERF = true                    # facultatif : affiche les temps (base / cours / fondamentaux / calculs)
-# AUTO_CONNEXION_DEMO = false          # facultatif : surcharge auth.CONNEXION_DEMO_AUTO (voir « Connexion par défaut »)
+**Secrets** (`.streamlit/secrets.toml` en local, *Settings › Secrets* sur Streamlit Cloud) : voir `secrets.toml.example`.
+Les mots de passe des comptes sont de préférence **hachés** : `python -m pea.outils.hacher_mot_de_passe` affiche la
+ligne `password_hash = "scrypt$…"` à coller sous `[users.identifiant]`. `password` en clair reste lu pour la
+transition. Après 8 essais ratés, une **session** est bloquée 15 min pour cet identifiant (un tiers ne peut plus
+bloquer le compte d'un autre) ; les essais répétés sur un identifiant sont aussi ralentis (5 s au plus).
 
-[users.demo]
-password = "demo"
-demo = true
+**Connexion par défaut (mode démo)** : l'app s'ouvre sur le compte `demo` (`CONNEXION_DEMO_AUTO` dans
+`pea/config.py`, surchargé par le secret `AUTO_CONNEXION_DEMO`). Le verrou 🔒 ou le bandeau « Mode démo » ouvre le
+formulaire de connexion. La démo est **en lecture seule en base** : les modifications d'un visiteur restent dans sa
+session. La session vit dans le navigateur : un rechargement de page oblige à se reconnecter (choix des mots de passe
+Streamlit plutôt qu'un fournisseur OIDC).
 
-[users.theo]
-password = "un_mot_de_passe_long_et_unique"
-demo = false
-```
+**Base** : exécuter `sql/schema.sql` puis `sql/migrations/001_cache_marche_quotas.sql` dans le SQL Editor de Supabase
+(idempotents, rejouables), puis `sql/seed_demo.sql` **une seule fois** pour le compte demo. Sans la migration 001,
+l'application fonctionne (replis en mémoire) mais sans cache partagé ni chargement en un aller-retour.
 
-Autres comptes : même modèle `[users.identifiant]` (`password`, `demo = false`). Les mots de passe restent dans les
-secrets Streamlit, pas dans Supabase. Les essais de connexion des comptes privés sont limités (8 par 15 min) ; le
-compte `demo` est public par conception. L'ancien secret `APP_PASSWORD` est encore lu comme mot de passe de `theo`
-si `[users.theo]` est absent.
-
-**Connexion par défaut (mode démo)** : à l'ouverture, l'app se connecte seule au compte `demo` (pratique pour les
-tests). L'interrupteur est le booléen `CONNEXION_DEMO_AUTO` en tête de `auth.py` (`True` = démo d'office, `False` =
-écran de connexion comme avant) ; le secret facultatif `AUTO_CONNEXION_DEMO` prime sur lui, sans toucher au code. Pour
-passer sur un compte personnel : cliquer sur le **verrou 🔒** (en-tête de chaque page) ou sur le **bandeau « Mode démo »** ;
-cela ouvre le formulaire de connexion (démo préremplie) sans reconnecter la démo d'office, jusqu'à la prochaine connexion
-réussie. Se déconnecter d'un compte personnel avec le verrou fait de même. Le cloisonnement par compte est inchangé.
-
-**Base** : exécuter `schema.sql` dans le SQL Editor de Supabase (idempotent, peut être rejoué), puis `seed_demo.sql`
-**une seule fois** pour le compte demo. Le compte `demo/demo` est partagé et modifiable par tous ses visiteurs :
-n'y saisir aucune donnée personnelle. Sur une base issue de l'ancien schéma mono-utilisateur (avant v8), consulter
-l'historique Git de `schema.sql` pour la migration vers `user_id`.
-
-**Vérification rapide** (le dépôt ne contient pas de suite de tests) : `python -m py_compile *.py`, puis lancer l'app
-avec les comptes `demo` et personnel. Les modules `calculs`, `technique`, `concurrents`, `import_ecran`, `llm` ne
-dépendent pas de Streamlit et se testent seuls (réseau à simuler).
+**Vérification** : `python -m pytest` (≈ 120 tests, 20 s) ; `python -m tests.mesures docs/mesures.json` compte les
+appels réseau avec des faux Supabase et Yahoo.
 
 ---
 
 ## Performance : ce qu'il faut savoir avant de toucher au code
 
-- **Cache base** (`db.py`) : 2 min, **par (compte, table)** ; une écriture n'invalide que sa table
-  (`_invalider`). `db.precharger()` lit toutes les tables en parallèle. Le bouton 🔄 vide tout.
-- **Cache Yahoo** (`donnees.py`) : **par titre** — cours 5 min, fondamentaux 6 h, bougies 1 h ; un échec n'est mémorisé
-  que 1 à 5 min. Un titre ajouté ne retélécharge pas les autres.
-- **Fragments** (`@st.fragment`) : Portefeuille (3 fragments frères : synthèse, cartes, graphiques), Historique,
-  Projet, Watchlist et Saisie ne relancent que leur zone ; les écritures finissent par un `st.rerun()` complet.
-- Les écritures de suivi (derniers cours, point du jour de `snapshots`) sont faites **en fin de script**, après
-  l'affichage de la page.
+- **Onglets paresseux** (`st.tabs(..., on_change="rerun", key="onglet")` + `tab.open`) : seul l'onglet ouvert s'exécute.
+- **Base** (`pea/data/repo.py`) : cache mémoire 2 min par (compte, table) ; une écriture n'invalide que sa table,
+  🔄 que le compte courant. Démarrage : une fonction SQL renvoie tout le compte en un aller-retour.
+- **Marché** (`pea/data/marche.py`) : cache par titre partagé entre comptes (cours 5 min, fondamentaux 6 h, bougies
+  1 h), copié dans `marche_cache`. Les cours périmés sont retéléchargés en un seul appel groupé, en arrière-plan :
+  la page attend au plus 4 s puis affiche le dernier cours connu et se met à jour dès l'arrivée des nouveaux.
+- **Fragments** (`@st.fragment`) : Portefeuille (synthèse, cartes, graphiques), Historique, Projet, Watchlist, Saisie.
+- Écritures de suivi (dernier prix, point du jour) **en fin de script**, limitées par compte (30 min / 15 min).
 - Hors du code : mise en veille de Streamlit Community Cloud et pause du projet Supabase gratuit après inactivité.
-
----
 
 ## Pièges connus
 
-- `tickers.ticker` est `NOT NULL` : pour modifier un titre, utiliser `db.modifier(table, id, rec, cle="isin")`,
+- `tickers.ticker` est `NOT NULL` : pour modifier un titre, utiliser `repo.modifier(table, id, rec, cle="isin")`,
   pas un `upsert` partiel.
 - Les fondamentaux sont indexés par **ticker** (pas par ISIN) : passer par `tmap.loc[isin, "ticker"]`.
 - `EV/EBITDA` n'est calculé qu'avec `enterpriseValue` ; sans elle, il n'est pas affiché (pas de repli sur la capitalisation).
@@ -217,10 +200,9 @@ dépendent pas de Streamlit et se testent seuls (réseau à simuler).
 - Non vérifié en conditions réelles dans les dernières livraisons : lecture d'une vraie capture par Gemini, qualité
   des suggestions de concurrent, rendu mobile et comportement tactile des fragments.
 - Mise en page adaptative, nouveaux graphiques et bandeau démo cliquable : livrés **sans test visuel** (le CSS de
-  `style.py` cible des attributs `data-testid` / classes `st-key-*` de Streamlit, qui peuvent changer d'une version à
+  `pea/ui/style.py` cible des attributs `data-testid` / classes `st-key-*` de Streamlit, qui peuvent changer d'une version à
   l'autre ; si une grille ne s'applique plus, les cartes retombent simplement sur une colonne).
 - Les données Yahoo sont indicatives (fondamentaux parfois absents, surtout pour les ETF).
-- Le compte `demo` est modifiable par tous sans plafond d'écriture.
 
 ## Interface adaptative et graphiques
 
@@ -242,7 +224,7 @@ dépendent pas de Streamlit et se testent seuls (réseau à simuler).
 
 ## Contribuer
 
-- Branches `vibe/{description}-{date}` ; commits clairs, en français ; tester avant de fusionner dans `main`.
+- Branches `refonte/…` ou `vibe/{description}-{date}` ; commits clairs, en français ; tester avant de fusionner dans `main`.
 - Mettre à jour ce README à chaque livraison qui change le comportement.
 - Ne jamais pousser : secrets, données réelles (positions, montants, `seed_pea.sql`), captures d'écran de courtier.
   L'historique Git conserve tout ce qui a été commité un jour : un secret ou une donnée réelle poussé est à considérer

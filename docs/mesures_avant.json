@@ -1,0 +1,145 @@
+{
+ "session_a_froid": {
+  "supabase_total": 16,
+  "supabase_detail": {
+   "select:analyses_ia": 1,
+   "select:analyses_scen": 1,
+   "select:chat_log": 1,
+   "select:dividendes": 1,
+   "select:partage": 2,
+   "select:scenario_trades": 1,
+   "select:scenarios": 1,
+   "select:secteurs": 1,
+   "select:snapshots": 2,
+   "select:tickers": 1,
+   "select:transactions": 1,
+   "select:versements": 1,
+   "select:watchlist": 1,
+   "upsert:tickers": 1
+  },
+  "yahoo_total": 11,
+  "yahoo_detail": {
+   "fast_info": 5,
+   "history": 1,
+   "info": 5
+  },
+  "yahoo_telechargements_groupes": 0,
+  "secondes": 0.73
+ },
+ "rerun_complet_caches_chauds": {
+  "supabase_total": 1,
+  "supabase_detail": {
+   "select:tickers": 1
+  },
+  "yahoo_total": 0,
+  "yahoo_detail": {},
+  "yahoo_telechargements_groupes": 0,
+  "secondes": 0.46
+ },
+ "interaction_widget": {
+  "supabase_total": 0,
+  "supabase_detail": {},
+  "yahoo_total": 0,
+  "yahoo_detail": {},
+  "yahoo_telechargements_groupes": 0
+ },
+ "clic_actualiser_theo": {
+  "supabase_total": 13,
+  "supabase_detail": {
+   "select:analyses_ia": 1,
+   "select:analyses_scen": 1,
+   "select:chat_log": 1,
+   "select:dividendes": 1,
+   "select:partage": 1,
+   "select:scenario_trades": 1,
+   "select:scenarios": 1,
+   "select:secteurs": 1,
+   "select:snapshots": 1,
+   "select:tickers": 1,
+   "select:transactions": 1,
+   "select:versements": 1,
+   "select:watchlist": 1
+  },
+  "yahoo_total": 10,
+  "yahoo_detail": {
+   "fast_info": 5,
+   "info": 5
+  },
+  "yahoo_telechargements_groupes": 0
+ },
+ "session_alice_apres_clic_de_theo": {
+  "supabase_total": 16,
+  "supabase_detail": {
+   "select:analyses_ia": 1,
+   "select:analyses_scen": 1,
+   "select:chat_log": 1,
+   "select:dividendes": 1,
+   "select:partage": 2,
+   "select:scenario_trades": 1,
+   "select:scenarios": 1,
+   "select:secteurs": 1,
+   "select:snapshots": 2,
+   "select:tickers": 1,
+   "select:transactions": 1,
+   "select:versements": 1,
+   "select:watchlist": 1,
+   "upsert:tickers": 1
+  },
+  "yahoo_total": 0,
+  "yahoo_detail": {},
+  "yahoo_telechargements_groupes": 0
+ },
+ "dix_sessions": {
+  "supabase_total": 49,
+  "supabase_detail": {
+   "select:analyses_ia": 3,
+   "select:analyses_scen": 3,
+   "select:chat_log": 3,
+   "select:dividendes": 3,
+   "select:partage": 5,
+   "select:scenario_trades": 3,
+   "select:scenarios": 3,
+   "select:secteurs": 3,
+   "select:snapshots": 5,
+   "select:tickers": 6,
+   "select:transactions": 3,
+   "select:versements": 3,
+   "select:watchlist": 3,
+   "upsert:tickers": 3
+  },
+  "yahoo_total": 11,
+  "yahoo_detail": {
+   "fast_info": 5,
+   "history": 1,
+   "info": 5
+  },
+  "yahoo_telechargements_groupes": 0
+ },
+ "dix_sessions_puis_un_rerun_chacune": {
+  "supabase_total": 49,
+  "supabase_detail": {
+   "select:analyses_ia": 3,
+   "select:analyses_scen": 3,
+   "select:chat_log": 3,
+   "select:dividendes": 3,
+   "select:partage": 5,
+   "select:scenario_trades": 3,
+   "select:scenarios": 3,
+   "select:secteurs": 3,
+   "select:snapshots": 5,
+   "select:tickers": 6,
+   "select:transactions": 3,
+   "select:versements": 3,
+   "select:watchlist": 3,
+   "upsert:tickers": 3
+  },
+  "yahoo_total": 11,
+  "yahoo_detail": {
+   "fast_info": 5,
+   "history": 1,
+   "info": 5
+  },
+  "yahoo_telechargements_groupes": 0
+ },
+ "memoire_max_ko": 285848
+}
