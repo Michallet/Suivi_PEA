@@ -7,8 +7,20 @@ from __future__ import annotations
 
 import pathlib
 from collections.abc import Mapping
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 RACINE = pathlib.Path(__file__).resolve().parent.parent
+PARIS = ZoneInfo("Europe/Paris")
+
+# --- Session ----------------------------------------------------------------------------------------
+# Toute clé de session propre à un compte (widgets, brouillons, conversations, contexte) commence par ce
+# préfixe : la déconnexion la purge en une fois (voir pea.ui.etat et pea.services.auth).
+PREFIXE_COMPTE = "c."
+
+
+def maintenant() -> datetime:
+    return datetime.now(PARIS)
 
 # --- Règles d'affichage ---------------------------------------------------------------------------
 SEUIL_CONCENTRATION = 25.0  # % des titres au-delà duquel on alerte
@@ -43,7 +55,6 @@ RECUL_429_INITIAL_S, RECUL_429_MAX_S = 60, 900  # recul exponentiel après une l
 CONNEXION_DEMO_AUTO = True      # ouverture directe sur la démo (lecture seule en base) ; secret AUTO_CONNEXION_DEMO
 MAX_ECHECS_SESSION = 8          # essais ratés avant blocage d'une session pour un identifiant
 FENETRE_ECHECS_S = 15 * 60
-SCRYPT_N, SCRYPT_R, SCRYPT_P = 2 ** 14, 8, 1
 
 _surcharge: dict | None = None  # tests : remplace st.secrets
 
@@ -98,26 +109,25 @@ def debug_perf() -> bool:
 
 
 def comptes() -> dict[str, dict]:
-    """Comptes lus dans [users.*] : {identifiant: {password, password_hash, demo}}.
+    """Comptes lus dans [users.*] : {identifiant: {password, demo}}.
 
     Le compte `demo` existe toujours (mot de passe public « demo »). L'ancien secret APP_PASSWORD reste lu
     comme mot de passe de `theo` si [users.theo] est absent.
     """
-    cfg: dict[str, dict] = {"demo": {"password": "demo", "password_hash": None, "demo": True}}
+    cfg: dict[str, dict] = {"demo": {"password": "demo", "demo": True}}
     brut = secret("users", {})
     if isinstance(brut, Mapping):
         for identifiant, d in brut.items():
             if not isinstance(d, Mapping):
                 continue
-            mdp, h = d.get("password"), d.get("password_hash")
-            if mdp is None and not h:
+            mdp = d.get("password")
+            if mdp is None:
                 continue
-            cfg[str(identifiant)] = {"password": None if mdp is None else str(mdp),
-                                     "password_hash": str(h) if h else None,
+            cfg[str(identifiant)] = {"password": str(mdp),
                                      "demo": bool(d.get("demo", str(identifiant) == "demo"))}
     ancien = secret("APP_PASSWORD")
     if ancien and "theo" not in cfg:
-        cfg["theo"] = {"password": str(ancien), "password_hash": None, "demo": False}
+        cfg["theo"] = {"password": str(ancien), "demo": False}
     return cfg
 
 

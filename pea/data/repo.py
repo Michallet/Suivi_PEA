@@ -31,6 +31,7 @@ journal = logging.getLogger(__name__)
 
 RPC_CHARGER = "pea_charger_compte"
 CLE_DEMO = "_pea_demo_tables"   # clé de session des tables modifiées par un visiteur de la démo
+CLE_DEMO_REV = CLE_DEMO + "_rev"  # compteur de modifications de la démo (signature des données)
 NOUVEL_ESSAI_ABSENT_S = 600      # table ou fonction absente : on ne réessaie pas avant 10 min
 
 
@@ -253,6 +254,16 @@ def lire(table: str) -> pd.DataFrame:
     return df.copy()
 
 
+def signature(tables=TABLES_COMPTE) -> tuple:
+    """Version des données du compte courant : change à chaque écriture, invalidation ou relecture.
+
+    Sert à mémoïser le contexte portefeuille sans relire ni recopier les tables."""
+    ctx = _ctx()
+    with _verrou:
+        base = tuple((t, _version(ctx.uid, t), (_cache.get((ctx.uid, t)) or (0, 0))[1]) for t in tables)
+    return ctx.uid, (ctx.session.get(CLE_DEMO_REV, 0) if ctx.demo else 0), base
+
+
 def _charger_par_rpc(uid: str, tables: list[str]) -> bool:
     """Un seul aller-retour : la fonction SQL renvoie toutes les tables du compte. False si indisponible."""
     if _absent(RPC_CHARGER):
@@ -429,6 +440,7 @@ def _demo_table(ctx: Contexte, table: str) -> pd.DataFrame:
 def _demo_ranger(ctx: Contexte, table: str, df: pd.DataFrame) -> None:
     lignes = [{k: _clean(v) if k in ("date",) else v for k, v in r.items()} for r in df.to_dict("records")]
     ctx.session.setdefault(CLE_DEMO, {})[table] = _typer(table, lignes)
+    ctx.session[CLE_DEMO_REV] = ctx.session.get(CLE_DEMO_REV, 0) + 1
 
 
 def _maintenant_iso() -> str:

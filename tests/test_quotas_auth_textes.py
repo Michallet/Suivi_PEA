@@ -81,15 +81,11 @@ def test_quota_sans_migration_repli(base):
     assert quotas.utilises("chat") == 1
 
 
-def test_hachage_et_verification(base):
-    h = auth.hacher("un-mot-de-passe-long")
-    assert h.startswith("scrypt$") and "un-mot" not in h
-    secrets = {**SECRETS, "users": {**SECRETS["users"], "bob": {"password_hash": h, "demo": False}}}
-    config.definir_secrets_pour_tests(secrets)
-    assert auth.verifier_identifiants("bob", "un-mot-de-passe-long")
-    assert not auth.verifier_identifiants("bob", "faux")
-    assert auth.verifier_identifiants("theo", "mot-de-passe-fictif-1")  # mot de passe en clair : transition
+def test_verification_mot_de_passe_en_clair(base):
+    assert auth.verifier_identifiants("theo", "mot-de-passe-fictif-1")
+    assert not auth.verifier_identifiants("theo", "faux")
     assert not auth.verifier_identifiants("inconnu", "x")
+    assert not auth.verifier_identifiants("inconnu", "")
 
 
 def test_blocage_par_session_et_non_par_compte(base):

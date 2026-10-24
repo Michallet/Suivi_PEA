@@ -64,7 +64,7 @@ def test_budget_rerun_a_chaud_et_onglet_paresseux():
     t = time.perf_counter()
     at.run()
     assert base.nb() <= 1 and yahoo.total() == 0
-    assert time.perf_counter() - t < 5
+    assert time.perf_counter() - t < 1  # budget : moins de 1 s (contexte mémoïsé)
     # onglet Portefeuille ouvert : l'historique (indice Yahoo, partage) ne s'exécute pas
     assert yahoo.appels.get("history", 0) == 0 and base.nb("select", "partage") == 0
 
@@ -73,7 +73,7 @@ def test_budget_premiere_session_a_froid():
     at, base, yahoo = nouvelle_app("theo")
     at.run()
     lectures = [a for a in base.appels if a[0] in ("select", "rpc")]
-    assert base.nb("rpc") == 1 and len(lectures) <= 3  # RPC + cache marché + compteur de quota
+    assert base.nb("rpc") == 1 and len(lectures) <= 2  # budget : RPC + cache marché partagé
     assert yahoo.appels["download"] == 1 and yahoo.appels.get("fast_info", 0) == 0
 
 

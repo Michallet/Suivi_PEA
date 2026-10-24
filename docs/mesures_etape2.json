@@ -1,0 +1,87 @@
+{
+ "session_a_froid": {
+  "supabase_total": 5,
+  "supabase_detail": {
+   "rpc:pea_charger_compte": 1,
+   "select:marche_cache": 1,
+   "upsert:marche_cache": 2,
+   "upsert:tickers": 1
+  },
+  "yahoo_total": 6,
+  "yahoo_detail": {
+   "download": 1,
+   "info": 5
+  },
+  "yahoo_telechargements_groupes": 1,
+  "secondes": 0.48
+ },
+ "rerun_complet_caches_chauds": {
+  "supabase_total": 1,
+  "supabase_detail": {
+   "select:tickers": 1
+  },
+  "yahoo_total": 0,
+  "yahoo_detail": {},
+  "yahoo_telechargements_groupes": 0,
+  "secondes": 0.13
+ },
+ "interaction_widget": {
+  "supabase_total": 0,
+  "supabase_detail": {},
+  "yahoo_total": 0,
+  "yahoo_detail": {},
+  "yahoo_telechargements_groupes": 0
+ },
+ "clic_actualiser_theo": {
+  "supabase_total": 1,
+  "supabase_detail": {
+   "rpc:pea_charger_compte": 1
+  },
+  "yahoo_total": 0,
+  "yahoo_detail": {},
+  "yahoo_telechargements_groupes": 0
+ },
+ "session_alice_apres_clic_de_theo": {
+  "supabase_total": 2,
+  "supabase_detail": {
+   "rpc:pea_charger_compte": 1,
+   "upsert:tickers": 1
+  },
+  "yahoo_total": 0,
+  "yahoo_detail": {},
+  "yahoo_telechargements_groupes": 0
+ },
+ "dix_sessions": {
+  "supabase_total": 10,
+  "supabase_detail": {
+   "rpc:pea_charger_compte": 3,
+   "select:marche_cache": 1,
+   "select:tickers": 2,
+   "upsert:marche_cache": 2,
+   "upsert:tickers": 2
+  },
+  "yahoo_total": 6,
+  "yahoo_detail": {
+   "download": 1,
+   "info": 5
+  },
+  "yahoo_telechargements_groupes": 1
+ },
+ "dix_sessions_puis_un_rerun_chacune": {
+  "supabase_total": 10,
+  "supabase_detail": {
+   "rpc:pea_charger_compte": 3,
+   "select:marche_cache": 1,
+   "select:tickers": 2,
+   "upsert:marche_cache": 2,
+   "upsert:tickers": 2
+  },
+  "yahoo_total": 6,
+  "yahoo_detail": {
+   "download": 1,
+   "info": 5
+  },
+  "yahoo_telechargements_groupes": 1
+ },
+ "memoire_max_ko": 194312
+}

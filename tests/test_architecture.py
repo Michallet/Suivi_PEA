@@ -52,3 +52,36 @@ def test_aucun_except_muet():
             if l.strip() == "except Exception:" and lignes[i + 1].strip() == "pass":
                 fautifs.append(f"{f.name}:{i + 1}")
     assert not fautifs
+
+
+@pytest.mark.parametrize("f", _fichiers("pea/services"), ids=lambda f: f.name)
+def test_services_ne_dependent_pas_de_l_interface(f):
+    assert not {i for i in imports(f) if i.startswith("pea.ui")}
+
+
+def test_app_mince():
+    assert len((RACINE / "app.py").read_text(encoding="utf-8").splitlines()) <= 150
+
+
+def test_fonctions_courtes():
+    """Aucune fonction de plus de 60 lignes dans l'application (constat C1 de l'audit)."""
+    longues = []
+    for f in [RACINE / "app.py", *RACINE.joinpath("pea").rglob("*.py")]:
+        for n in ast.walk(ast.parse(f.read_text(encoding="utf-8"))):
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.end_lineno - n.lineno + 1 > 60:
+                longues.append(f"{f.name}:{n.name} ({n.end_lineno - n.lineno + 1})")
+    assert not longues, longues
+
+
+def test_cles_de_session_par_espace_de_noms():
+    """L'interface n'écrit dans st.session_state qu'avec des clés de l'espace `c.` (via etat.k) ou des
+    clés globales connues : la purge à la déconnexion reste complète."""
+    import re
+    motif = re.compile(r"session_state\[\s*[\"']([^\"']+)[\"']\s*\]")
+    globales = {"user_id", "onglet", "_attente_marche", "login_user", "login_password"}
+    fautives = []
+    for f in [RACINE / "app.py", *RACINE.joinpath("pea", "ui").rglob("*.py")]:
+        for cle in motif.findall(f.read_text(encoding="utf-8")):
+            if not cle.startswith("c.") and cle not in globales:
+                fautives.append(f"{f.name}:{cle}")
+    assert not fautives, fautives

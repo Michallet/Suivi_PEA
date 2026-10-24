@@ -4,16 +4,14 @@ Choix du propriétaire : pas d'OIDC Google (AUTH_MODE = "password", seul adaptat
 la session vit dans st.session_state, un rechargement de la page oblige à se reconnecter.
 
 Durcissement :
-* mots de passe HACHÉS (`password_hash`, scrypt de la bibliothèque standard) ; `password` en clair reste lu
-  pour la transition ;
+* mots de passe en clair dans les secrets Streamlit (`password`), choix du propriétaire : les secrets ne sont
+  jamais dans le dépôt ;
 * blocage par couple (identifiant, session) : un tiers ne peut plus verrouiller le compte d'un autre ;
 * ralentissement progressif par identifiant (au plus 5 s) contre les essais en rafale depuis plusieurs sessions ;
 * comparaison en temps constant, même pour un identifiant inconnu.
 """
 from __future__ import annotations
 
-import base64
-import hashlib
 import hmac
 import secrets as _alea
 import threading
@@ -30,9 +28,10 @@ CLE_CONNEXION_DEMANDEE = "connexion_demandee"
 CLE_ECHECS = "_auth_echecs"
 RALENTISSEMENT_MAX_S = 5.0
 
-# Préfixes des clés de session propres à un compte (relevé d'import, chat, sélections, brouillons…).
-PREFIXES_ETAT_COMPTE = ("chat_", "wl_", "scenario_", "ed_", "imp", "vue_", "cmp_", "cedit_", "csug_",
-                        "cisin_", "ctk_", "conc_", "part_", "qd_", "flash", repo.CLE_DEMO)
+# Clés de session propres à un compte : tout l'espace de noms `c.` (widgets, brouillons, chat, contexte)
+# et les tables de la démo. Une seule purge, à la connexion comme à la déconnexion.
+PREFIXES_ETAT_COMPTE = (config.PREFIXE_COMPTE, repo.CLE_DEMO)
+CLES_FORMULAIRE = ("login_user", "login_password")
 
 _echecs_identifiant: dict = {}   # identifiant -> [horodatages] (ralentissement, jamais blocage)
 _verrou = threading.Lock()
@@ -43,45 +42,13 @@ def reinitialiser_pour_tests() -> None:
         _echecs_identifiant.clear()
 
 
-# --------------------------------------------------------------------------------------------------
-# Hachage
-# --------------------------------------------------------------------------------------------------
-def hacher(mot_de_passe: str) -> str:
-    sel = _alea.token_bytes(16)
-    h = hashlib.scrypt(mot_de_passe.encode("utf-8"), salt=sel, n=config.SCRYPT_N, r=config.SCRYPT_R,
-                       p=config.SCRYPT_P, dklen=32, maxmem=64 * 1024 * 1024)
-    b64 = lambda b: base64.b64encode(b).decode("ascii")
-    return f"scrypt${config.SCRYPT_N}${config.SCRYPT_R}${config.SCRYPT_P}${b64(sel)}${b64(h)}"
-
-
-def _verifier_hache(mot_de_passe: str, empreinte: str) -> bool:
-    try:
-        algo, n, r, p, sel, attendu = empreinte.split("$")
-        if algo != "scrypt":
-            return False
-        attendu_b = base64.b64decode(attendu)
-        h = hashlib.scrypt(mot_de_passe.encode("utf-8"), salt=base64.b64decode(sel), n=int(n), r=int(r),
-                           p=int(p), dklen=len(attendu_b), maxmem=64 * 1024 * 1024)
-        return hmac.compare_digest(h, attendu_b)
-    except Exception:
-        return False
-
-
-_FACTICE = None
-
-
 def verifier_identifiants(identifiant: str, mot_de_passe: str) -> bool:
-    """Vrai si le couple est valide. Même coût pour un identifiant inconnu (empreinte factice)."""
-    global _FACTICE
+    """Vrai si le couple est valide. Comparaison en temps constant, même pour un identifiant inconnu."""
     cfg = config.comptes().get(identifiant)
-    if cfg and cfg.get("password_hash"):
-        return _verifier_hache(mot_de_passe, cfg["password_hash"])
-    if cfg and cfg.get("password") is not None:
-        return hmac.compare_digest(str(mot_de_passe).encode("utf-8"), cfg["password"].encode("utf-8"))
-    if _FACTICE is None:
-        _FACTICE = hacher(_alea.token_urlsafe(16))
-    _verifier_hache(mot_de_passe, _FACTICE)
-    return False
+    attendu = (cfg or {}).get("password")
+    reference = attendu if attendu is not None else _alea.token_urlsafe(16)
+    egal = hmac.compare_digest(str(mot_de_passe).encode("utf-8"), str(reference).encode("utf-8"))
+    return attendu is not None and egal
 
 
 # --------------------------------------------------------------------------------------------------
@@ -156,39 +123,29 @@ def connecter_demo_par_defaut() -> None:
 def vider_etat_compte(inclure_formulaire: bool = True) -> None:
     """Purge unique : retire les données et sélections UI pouvant provenir du compte précédent."""
     for cle in list(st.session_state.keys()):
-        if str(cle).startswith(PREFIXES_ETAT_COMPTE):
-            st.session_state.pop(cle, None)
-        elif inclure_formulaire and cle in {"login_user", "login_password"}:
+        if str(cle).startswith(PREFIXES_ETAT_COMPTE) or (inclure_formulaire and cle in CLES_FORMULAIRE):
             st.session_state.pop(cle, None)
 
 
-def formulaire_connexion() -> None:
-    """Formulaire dont les champs sont préremplis avec les identifiants de démonstration."""
-    with st.form("form_connexion"):
-        identifiant = st.text_input("Identifiant", value="demo", key="login_user")
-        mot_de_passe = st.text_input("Mot de passe", value="demo", type="password", key="login_password")
-        soumis = st.form_submit_button("Entrer", type="primary", use_container_width=True)
-    if not soumis:
-        return
+def tenter_connexion(identifiant: str, mot_de_passe: str) -> str | None:
+    """Ouvre la session si le couple est valide. Retourne le message d'erreur à afficher, sinon None."""
     identifiant = identifiant.strip()
     cfg = config.comptes().get(identifiant)
     compte_prive = cfg is not None and not cfg.get("demo", False)
     if compte_prive and (attente := attente_session(identifiant, st.session_state)):
-        st.error(f"Trop de tentatives pour cet identifiant. Réessayez dans {attente // 60 + 1} min.")
-        return
+        return f"Trop de tentatives pour cet identifiant. Réessayez dans {attente // 60 + 1} min."
     if compte_prive:
         time.sleep(ralentissement(identifiant))
     if not (cfg is not None and verifier_identifiants(identifiant, mot_de_passe)):
         if compte_prive:
             noter_echec(identifiant, st.session_state)
-        st.error("Identifiant ou mot de passe incorrect.")
-        return
+        return "Identifiant ou mot de passe incorrect."
     if compte_prive:
         effacer_echecs(identifiant, st.session_state)
     vider_etat_compte(inclure_formulaire=False)
     st.session_state[CLE_SESSION] = identifiant
     st.session_state.pop(CLE_CONNEXION_DEMANDEE, None)
-    st.rerun()
+    return None
 
 
 def deconnecter() -> None:

@@ -34,25 +34,33 @@ plus-values, cash, historique, scénarios « et si… », watchlist, indicateurs
 
 ## Architecture
 
-Refonte en cours (branche `refonte/socle-2026-10`) : voir **docs/MIGRATION.md**, qui décrit l'API des modules
-et ce qui reste à faire. Dépendances à sens unique : `domain` ← `data` ← `services` ← interface.
+Dépendances à sens unique : `domain` ← `data` ← `services` ← `ui` (vérifiées par `tests/test_architecture.py`).
+Historique de la refonte, décisions et mesures : **docs/MIGRATION.md**.
 
 | Fichier | Rôle |
 |---|---|
-| `app.py` | Interface : 5 onglets paresseux (Portefeuille · Historique · Projet · Watchlist · Saisie), cartes, blocs IA/chat, import par captures |
-| `pea/config.py` | Constantes (quotas, seuils, durées de cache, indices) et lecture typée des secrets |
-| `pea/domain/` | Pur, testé : `calculs`, `technique`, `import_ecran`, `concurrents`, `formats`, `fondamentaux`, `nombres`, `textes` |
+| `app.py` | Assemblage seulement (< 100 lignes) : page, porte de connexion, contexte du compte, 5 onglets paresseux |
+| `pea/config.py` | Constantes (quotas, seuils, durées de cache, indices), `maintenant()`, lecture typée des secrets |
+| `pea/domain/` | Pur, testé, sans Streamlit ni réseau : `calculs`, `technique`, `import_ecran`, `concurrents`, `formats`, `fondamentaux`, `nombres`, `textes` |
 | `pea/data/repo.py` | **Seule** porte vers Supabase : `user_id` forcé, cache par compte, chargement en un aller-retour, démo en lecture seule |
 | `pea/data/marche.py` | Yahoo Finance : téléchargement groupé, cache mémoire + `marche_cache` partagé, arrière-plan, recul après 429 |
 | `pea/data/schema.py` | Colonnes métier de chaque table (cohérence avec le SQL vérifiée par les tests) |
-| `pea/services/` | `auth` (mots de passe hachés), `quotas` (IA), `ia/` (prompts, contexte, validation, client HTTP), `partage`, `suivi` |
-| `pea/ui/style.py` | CSS adaptatif, palette et habillage des graphiques Plotly |
+| `pea/services/portefeuille.py` | **Contexte du compte** (`Portefeuille`) : données, cours, positions, synthèse, fondamentaux ; construit une fois par rerun, mémoïsé |
+| `pea/services/` (suite) | `auth` (mots de passe des secrets), `titres` (création de ticker, concurrent), `quotas` (IA), `ia/` (prompts, contexte, validation, client HTTP), `partage`, `suivi` |
+| `pea/ui/pages/` | Un module par onglet : `portefeuille`, `historique`, `projet`, `watchlist`, `saisie/` (une sous-page par action) |
+| `pea/ui/composants/` | `cartes` (lignes, concurrent), `graphiques` (Plotly), `ia` (bloc d'analyse et chat uniques), `communs` |
+| `pea/ui/` (suite) | `entete` (connexion, 🔄, 🔒, bandeau démo), `etat` (clés de session `c.…`, messages), `style` (CSS, palette) |
 | `prompts.md` | Prompts éditables (sections `## analyse`, `## scenario`, `## chat`, `## capture`, `## concurrent`) |
 | `sql/schema.sql`, `sql/migrations/` | Schéma Supabase et migrations additives, idempotentes |
 | `sql/seed_demo.sql` | Portefeuille fictif du compte `demo` (à exécuter **une seule fois**) |
-| `tests/` | Caractérisation des règles métier, isolation des comptes, AppTest multi-comptes, mesures |
+| `tests/` | Caractérisation des règles métier, parité du rendu, isolation des comptes, AppTest multi-comptes, mesures |
 
-**Ordre de lecture conseillé** : `docs/MIGRATION.md` → `pea/domain/calculs.py` → `pea/data/repo.py` → `pea/data/marche.py` → `app.py`.
+**Ordre de lecture conseillé** : `pea/domain/calculs.py` → `pea/data/repo.py` → `pea/services/portefeuille.py` →
+`app.py` → la page concernée dans `pea/ui/pages/`.
+
+**Ajouter un écran ou une action** : une fonction `afficher(pf)` dans `pea/ui/pages/` (ou `saisie/`), qui reçoit le
+contexte `pf` et n'écrit qu'à travers `repo` ; clés de widgets via `etat.k(...)` ; après une écriture, `flash(...)` puis
+`st.rerun()` (le contexte est reconstruit) ; si rien n'est écrit, `etat.relancer_zone()` ne relance que le fragment.
 
 **Tables** : `transactions`, `dividendes`, `versements`, `secteurs`, `tickers` (ISIN → ticker, dernier prix, concurrent),
 `snapshots` (valeur et apports par jour), `watchlist`, `scenarios`, `scenario_trades`, `analyses_ia`, `analyses_scen`,
@@ -152,9 +160,7 @@ streamlit run app.py
 `.streamlit/secrets.toml` ne l'est **jamais** (`.gitignore`).
 
 **Secrets** (`.streamlit/secrets.toml` en local, *Settings › Secrets* sur Streamlit Cloud) : voir `secrets.toml.example`.
-Les mots de passe des comptes sont de préférence **hachés** : `python -m pea.outils.hacher_mot_de_passe` affiche la
-ligne `password_hash = "scrypt$…"` à coller sous `[users.identifiant]`. `password` en clair reste lu pour la
-transition. Après 8 essais ratés, une **session** est bloquée 15 min pour cet identifiant (un tiers ne peut plus
+Chaque compte est un bloc `[users.identifiant]` avec son `password` (gérés à la main dans les secrets). Après 8 essais ratés, une **session** est bloquée 15 min pour cet identifiant (un tiers ne peut plus
 bloquer le compte d'un autre) ; les essais répétés sur un identifiant sont aussi ralentis (5 s au plus).
 
 **Connexion par défaut (mode démo)** : l'app s'ouvre sur le compte `demo` (`CONNEXION_DEMO_AUTO` dans
@@ -167,7 +173,7 @@ Streamlit plutôt qu'un fournisseur OIDC).
 (idempotents, rejouables), puis `sql/seed_demo.sql` **une seule fois** pour le compte demo. Sans la migration 001,
 l'application fonctionne (replis en mémoire) mais sans cache partagé ni chargement en un aller-retour.
 
-**Vérification** : `python -m pytest` (≈ 120 tests, 20 s) ; `python -m tests.mesures docs/mesures.json` compte les
+**Vérification** : `python -m pytest` (≈ 150 tests, 20 s) ; `python -m tests.mesures docs/mesures.json` compte les
 appels réseau avec des faux Supabase et Yahoo.
 
 ---
@@ -175,6 +181,8 @@ appels réseau avec des faux Supabase et Yahoo.
 ## Performance : ce qu'il faut savoir avant de toucher au code
 
 - **Onglets paresseux** (`st.tabs(..., on_change="rerun", key="onglet")` + `tab.open`) : seul l'onglet ouvert s'exécute.
+- **Contexte** (`pea/services/portefeuille.py`) : mémoïsé dans la session par (compte, signature des données,
+  horodatage marché, fondamentaux connus). Un rerun à caches chauds ne relit ni ne recalcule rien.
 - **Base** (`pea/data/repo.py`) : cache mémoire 2 min par (compte, table) ; une écriture n'invalide que sa table,
   🔄 que le compte courant. Démarrage : une fonction SQL renvoie tout le compte en un aller-retour.
 - **Marché** (`pea/data/marche.py`) : cache par titre partagé entre comptes (cours 5 min, fondamentaux 6 h, bougies
@@ -188,12 +196,18 @@ appels réseau avec des faux Supabase et Yahoo.
 
 - `tickers.ticker` est `NOT NULL` : pour modifier un titre, utiliser `repo.modifier(table, id, rec, cle="isin")`,
   pas un `upsert` partiel.
-- Les fondamentaux sont indexés par **ticker** (pas par ISIN) : passer par `tmap.loc[isin, "ticker"]`.
+- Les fondamentaux sont indexés par **ticker** (pas par ISIN) : passer par `pf.ticker_de(isin)`.
 - `EV/EBITDA` n'est calculé qu'avec `enterpriseValue` ; sans elle, il n'est pas affiché (pas de repli sur la capitalisation).
 - Une valeur Yahoo manquante ne doit jamais devenir `0` ; l'app préfère « N/A » ou le dernier prix connu.
 - Dans un `st.form`, seuls les `st.form_submit_button` sont autorisés (pas de `st.button`) ; pour une action
   intermédiaire, utiliser des widgets à clés et des callbacks.
 - Le cache des fondamentaux dure 6 h : 🔄 (ou redémarrage) pour voir de nouvelles valeurs.
+- **Clés de session** : toute clé propre à un compte passe par `etat.k(...)` (préfixe `c.`), sinon elle survit à la
+  déconnexion. Un test refuse les clés écrites en dur hors de cet espace.
+- Un **fragment** relancé seul réutilise le contexte `pf` du dernier rerun complet : après une écriture en base,
+  toujours `st.rerun()` (complet), jamais `relancer_zone()`.
+- Le test de parité du rendu (`tests/test_rendu.py`) échoue à tout changement visible : s'il est voulu, régénérer la
+  référence avec `python -m tests.rendu` et le dire dans le commit.
 
 ## Limites connues
 

@@ -52,7 +52,7 @@ def mesurer() -> dict:
 
     # 2. interaction sur un widget (sélection de l'axe de la matrice) -----------------------------------
     remise_a_zero(base, yahoo)
-    cases = [c for c in at.checkbox if c.key == "qd_wl"]
+    cases = [c for c in at.checkbox if c.key in ("qd_wl", "c.qd.wl")]
     if cases:
         cases[0].check().run()
         res["interaction_widget"] = compteurs(base, yahoo)

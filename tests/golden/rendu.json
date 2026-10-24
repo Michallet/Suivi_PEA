@@ -1,0 +1,5166 @@
+{
+"theo": {
+"📊 Portefeuille": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"8 109,17 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"4 709,17 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"3 400,00 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"423,20 €"
+],
+[
+"Progress",
+"2"
+],
+[
+"Expander",
+"✨ Assistant IA · Analyse & Chat"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### ✨ Analyse IA"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse."
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### 💬 Discuter de mon portefeuille"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer le chat."
+],
+[
+"Warning",
+"Concentration : Epsilon Energie SpA pèse 91 % des titres (seuil 25 %)."
+],
+[
+"Caption",
+"Cours Yahoo différés · actualisés à HH:MM (cache 5 min)"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Epsilon Energie SpA**  \nÉnergie · 91 %  \n[📰 Google Actualités](https://news.google.com/search?q=Epsilon+Energie+SpA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>7 006,93 €</b><br><span style='color:#16a34a'>+0,37 % auj.</span><br><span style='color:#16a34a'>+271,2 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **150**\n- PRM : **12,58 €**\n- Cours : **46,71 €**\n- +/- value latente : **+5 119,43 €**\n- Dividendes perçus : **0,00 €**\n- PER : **23,0**\n- PER pré"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Alpha SA**  \nLuxe · 4 %  \n[📰 Google Actualités](https://news.google.com/search?q=Alpha+SA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>342,89 €</b><br><span style='color:#dc2626'>-0,99 % auj.</span><br><span style='color:#dc2626'>-71,0 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **11**\n- PRM : **107,67 €**\n- Cours : **31,17 €**\n- +/- value latente : **-841,44 €**\n- Dividendes perçus : **12,50 €**\n- PER : **17,0**\n- PER prév"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Delta Santé NV**  \nSanté · 3 %  \n[📰 Google Actualités](https://news.google.com/search?q=Delta+Sant%C3%A9+NV+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>215,77 €</b><br><span style='color:#dc2626'>-0,24 % auj.</span><br><span style='color:#dc2626'>-64,4 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **8**\n- PRM : **75,75 €**\n- Cours : **26,97 €**\n- +/- value latente : **-390,23 €**\n- Dividendes perçus : **4,20 €**\n- PER : **22,0**\n- PER prévisi"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Gamma Monde UCITS ETF**  \nETF monde · 2 %  \n[📰 Google Actualités](https://news.google.com/search?q=Gamma+Monde+UCITS+ETF+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>120,38 €</b><br><span style='color:#dc2626'>-0,18 % auj.</span><br><span style='color:#dc2626'>-51,8 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **5**\n- PRM : **50,00 €**\n- Cours : **24,08 €**\n- +/- value latente : **-129,62 €**\n- Dividendes perçus : **0,00 €**\n- Actifs sous gestion : **1,20"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"91 %"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"4"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"0,2 %"
+],
+[
+"Subheader",
+"Répartition"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par secteur**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par ligne** · couleur = performance"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Performance latente par ligne"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Contribution à la performance (€)"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Subheader",
+"Matrice de notes"
+],
+[
+"Column",
+"None"
+],
+[
+"Selectbox",
+"net_income"
+],
+[
+"Column",
+"None"
+],
+[
+"Selectbox",
+"per"
+],
+[
+"Column",
+"None"
+],
+[
+"Checkbox",
+"False"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Caption",
+"Chaque ligne reçoit, sur chaque axe, une **note de 1 à 10 relative à ce portefeuille** : 10 = le meilleur du lot, 1 = pas de valeur (ex. société déficitaire, sa"
+],
+[
+"Expander",
+"Plus-values réalisées & dividendes"
+],
+[
+"Markdown",
+"- Plus-values réalisées : **+134,33 €**\n- Dividendes nets perçus : **16,70 €**"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"📈 Historique": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Radio",
+"Tout"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Valeur du PEA"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Performance vs indice"
+],
+[
+"Caption",
+"Performance pondérée par le temps : neutralise vos versements, base 100."
+],
+[
+"Selectbox",
+"MSCI World (CW8)"
+],
+[
+"Multiselect",
+"['pseudo-alice']"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Markdown",
+"Mon PEA : **+5,49 %** · MSCI World (CW8) : **N/A %**"
+],
+[
+"Markdown",
+"pseudo-alice : **+2,76 %**"
+],
+[
+"Caption",
+"Courbes des autres utilisateurs : base 100 au début de la période (ou à leur 1er point s'il est plus récent)."
+],
+[
+"Divider",
+"---"
+],
+[
+"Checkbox",
+"True"
+],
+[
+"TextInput",
+"pseudo-theo"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"🔭 Projet": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Caption",
+"Simulez une répartition future à partir de votre PEA actuel, **sans le modifier**. Les opérations sont fictives, au dernier cours connu."
+],
+[
+"Expander",
+"➕ Nouveau scénario"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"Selectbox",
+"1"
+],
+[
+"Markdown",
+"**Opérations fictives**"
+],
+[
+"Caption",
+"Aucune opération pour l'instant."
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Expander",
+"➕ Ajouter une opération"
+],
+[
+"Radio",
+"ACHAT"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"Radio",
+"Montant (€)"
+],
+[
+"Caption",
+"Cours : 31,17 €"
+],
+[
+"NumberInput",
+"500.0"
+],
+[
+"Button",
+"False"
+],
+[
+"NumberInput",
+"0.0"
+],
+[
+"Button",
+"False"
+],
+[
+"Subheader",
+"Actuel vs projeté"
+],
+[
+"Warning",
+"Epsilon Energie SpA pèserait 91 % des titres."
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"423,20 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"4"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par ligne**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par secteur**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Expander",
+"Détail des écarts (points de %)"
+],
+[
+"Dataframe",
+"                   Ligne  Actuel %  Projeté %  Écart\n0    Epsilon Energie SpA      86.4       86.4    0.0\n1                   Cash       5.2        5.2    0.0\n2"
+],
+[
+"Subheader",
+"Lignes du scénario"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Epsilon Energie SpA**  \nÉnergie · 91 %  \n[📰 Google Actualités](https://news.google.com/search?q=Epsilon+Energie+SpA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>7 006,93 €</b><br><span style='color:#16a34a'>+0,37 % auj.</span><br><span style='color:#16a34a'>+271,2 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **150**\n- PRM : **12,58 €**\n- Cours : **46,71 €**\n- +/- value latente : **+5 119,43 €**\n- Dividendes perçus : **0,00 €**\n- PER : **23,0**\n- PER pré"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Alpha SA**  \nLuxe · 4 %  \n[📰 Google Actualités](https://news.google.com/search?q=Alpha+SA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>342,89 €</b><br><span style='color:#dc2626'>-0,99 % auj.</span><br><span style='color:#dc2626'>-71,0 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **11**\n- PRM : **107,67 €**\n- Cours : **31,17 €**\n- +/- value latente : **-841,44 €**\n- Dividendes perçus : **12,50 €**\n- PER : **17,0**\n- PER prév"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Delta Santé NV**  \nSanté · 3 %  \n[📰 Google Actualités](https://news.google.com/search?q=Delta+Sant%C3%A9+NV+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>215,77 €</b><br><span style='color:#dc2626'>-0,24 % auj.</span><br><span style='color:#dc2626'>-64,4 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **8**\n- PRM : **75,75 €**\n- Cours : **26,97 €**\n- +/- value latente : **-390,23 €**\n- Dividendes perçus : **4,20 €**\n- PER : **22,0**\n- PER prévisi"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Gamma Monde UCITS ETF**  \nETF monde · 2 %  \n[📰 Google Actualités](https://news.google.com/search?q=Gamma+Monde+UCITS+ETF+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>120,38 €</b><br><span style='color:#dc2626'>-0,18 % auj.</span><br><span style='color:#dc2626'>-51,8 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **5**\n- PRM : **50,00 €**\n- Cours : **24,08 €**\n- +/- value latente : **-129,62 €**\n- Dividendes perçus : **0,00 €**\n- Actifs sous gestion : **1,20"
+],
+[
+"Expander",
+"✨ Assistant IA du scénario · Analyse & Chat"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### ✨ Analyse IA du scénario"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse."
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### 💬 Discuter de ce scénario"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer le chat."
+],
+[
+"Caption",
+"Simulation de répartition uniquement : aucune prévision de rendement."
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"👀 Watchlist": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Beta Industries AG**  \nIndustrie  \n_note de theo_  \n[📰 Google Actualités](https://news.google.com/search?q=Beta+Industries+AG+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>21,64 €</b><br><span style='color:#dc2626'>-1,40 % auj.</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Cours : **21,64 €**\n- PER : **17,0**\n- PER prévisionnel : **13,0**\n- Chiffre d'affaires : **2,00 Md €**\n- Bénéfice net : **200,00 M €**\n- EBITDA : **400,00 M "
+],
+[
+"Toggle",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Expander",
+"➕ Ajouter une action / un ETF"
+],
+[
+"TextInput",
+""
+],
+[
+"TextInput",
+""
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"➕ Saisie": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Transaction"
+],
+[
+"Radio",
+"ACHAT"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"NumberInput",
+"1.0"
+],
+[
+"NumberInput",
+"31.17188288596327"
+],
+[
+"NumberInput",
+"0.0"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Import par captures": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Import par captures"
+],
+[
+"Caption",
+"Chargez une ou plusieurs captures de votre portefeuille chez le courtier : l'app propose les achats / ventes qui alignent votre suivi sur la réalité. Rien n'est"
+],
+[
+"FileUploader",
+"[]"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'import."
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Dividende": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Dividende"
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"NumberInput",
+"10.0"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Versement / retrait": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Versement / retrait"
+],
+[
+"Caption",
+"Les versements alimentent le cash du PEA et comptent dans le plafond de 150 000 €. Une « plus-value antérieure » alimente le cash sans compter comme apport."
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"Selectbox",
+"VERSEMENT"
+],
+[
+"NumberInput",
+"100.0"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Secteurs": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Secteurs"
+],
+[
+"Caption",
+"Laissez vide pour utiliser le secteur fourni par Yahoo (en anglais)."
+],
+[
+"TextInput",
+"Luxe"
+],
+[
+"TextInput",
+"ETF monde"
+],
+[
+"TextInput",
+"Santé"
+],
+[
+"TextInput",
+"Énergie"
+],
+[
+"TextInput",
+"Industrie"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Corriger / supprimer": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Corriger / supprimer"
+],
+[
+"Selectbox",
+"transactions"
+],
+[
+"Dataframe",
+"   id       date          isin   type  quantite     prix  frais\n0   1 AAAA-MM-JJ  FR00ALPHA014  ACHAT      10.0  100.000   10.0\n1   2 AAAA-MM-JJ  FR00GAMMA037  "
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Maintenance & sauvegarde": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : theo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Maintenance & sauvegarde"
+],
+[
+"Subheader",
+"Historique"
+],
+[
+"Caption",
+"Recalcule la valeur du PEA jour par jour depuis votre 1re opération (cours de clôture Yahoo) et remplace les points existants."
+],
+[
+"Button",
+"False"
+],
+[
+"Subheader",
+"Sauvegarde"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+]
+},
+"alice": {
+"📊 Portefeuille": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"16 236,64 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"9 436,64 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"6 800,00 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"864,70 €"
+],
+[
+"Progress",
+"4"
+],
+[
+"Expander",
+"✨ Assistant IA · Analyse & Chat"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### ✨ Analyse IA"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse."
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### 💬 Discuter de mon portefeuille"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer le chat."
+],
+[
+"Warning",
+"Concentration : Epsilon Energie SpA pèse 91 % des titres (seuil 25 %)."
+],
+[
+"Caption",
+"Cours Yahoo différés · actualisés à HH:MM (cache 5 min)"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Epsilon Energie SpA**  \nÉnergie · 91 %  \n[📰 Google Actualités](https://news.google.com/search?q=Epsilon+Energie+SpA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>14 013,85 €</b><br><span style='color:#16a34a'>+0,37 % auj.</span><br><span style='color:#16a34a'>+271,5 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **300**\n- PRM : **12,57 €**\n- Cours : **46,71 €**\n- +/- value latente : **+10 241,85 €**\n- Dividendes perçus : **0,00 €**\n- PER : **23,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Alpha SA**  \nLuxe · 4 %  \n[📰 Google Actualités](https://news.google.com/search?q=Alpha+SA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>685,78 €</b><br><span style='color:#dc2626'>-0,99 % auj.</span><br><span style='color:#dc2626'>-70,9 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **22**\n- PRM : **107,17 €**\n- Cours : **31,17 €**\n- +/- value latente : **-1 671,89 €**\n- Dividendes perçus : **12,50 €**\n- PER : **17,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Delta Santé NV**  \nSanté · 3 %  \n[📰 Google Actualités](https://news.google.com/search?q=Delta+Sant%C3%A9+NV+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>431,53 €</b><br><span style='color:#dc2626'>-0,24 % auj.</span><br><span style='color:#dc2626'>-64,3 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **16**\n- PRM : **75,62 €**\n- Cours : **26,97 €**\n- +/- value latente : **-778,47 €**\n- Dividendes perçus : **4,20 €**\n- PER : **22,0**\n- PER prévis"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Gamma Monde UCITS ETF**  \nETF monde · 2 %  \n[📰 Google Actualités](https://news.google.com/search?q=Gamma+Monde+UCITS+ETF+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>240,77 €</b><br><span style='color:#dc2626'>-0,18 % auj.</span><br><span style='color:#dc2626'>-51,8 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **10**\n- PRM : **50,00 €**\n- Cours : **24,08 €**\n- +/- value latente : **-259,23 €**\n- Dividendes perçus : **0,00 €**\n- Actifs sous gestion : **1,2"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"91 %"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"4"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"0,1 %"
+],
+[
+"Subheader",
+"Répartition"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par secteur**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par ligne** · couleur = performance"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Performance latente par ligne"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Contribution à la performance (€)"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Subheader",
+"Matrice de notes"
+],
+[
+"Column",
+"None"
+],
+[
+"Selectbox",
+"net_income"
+],
+[
+"Column",
+"None"
+],
+[
+"Selectbox",
+"per"
+],
+[
+"Column",
+"None"
+],
+[
+"Checkbox",
+"False"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Caption",
+"Chaque ligne reçoit, sur chaque axe, une **note de 1 à 10 relative à ce portefeuille** : 10 = le meilleur du lot, 1 = pas de valeur (ex. société déficitaire, sa"
+],
+[
+"Expander",
+"Plus-values réalisées & dividendes"
+],
+[
+"Markdown",
+"- Plus-values réalisées : **+287,67 €**\n- Dividendes nets perçus : **16,70 €**"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"📈 Historique": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Radio",
+"Tout"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Valeur du PEA"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Performance vs indice"
+],
+[
+"Caption",
+"Performance pondérée par le temps : neutralise vos versements, base 100."
+],
+[
+"Selectbox",
+"MSCI World (CW8)"
+],
+[
+"Multiselect",
+"['pseudo-theo']"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Markdown",
+"Mon PEA : **+2,76 %** · MSCI World (CW8) : **N/A %**"
+],
+[
+"Markdown",
+"pseudo-theo : **+5,49 %**"
+],
+[
+"Caption",
+"Courbes des autres utilisateurs : base 100 au début de la période (ou à leur 1er point s'il est plus récent)."
+],
+[
+"Divider",
+"---"
+],
+[
+"Checkbox",
+"True"
+],
+[
+"TextInput",
+"pseudo-alice"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"🔭 Projet": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Caption",
+"Simulez une répartition future à partir de votre PEA actuel, **sans le modifier**. Les opérations sont fictives, au dernier cours connu."
+],
+[
+"Expander",
+"➕ Nouveau scénario"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"Selectbox",
+"1001"
+],
+[
+"Markdown",
+"**Opérations fictives**"
+],
+[
+"Caption",
+"Aucune opération pour l'instant."
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Expander",
+"➕ Ajouter une opération"
+],
+[
+"Radio",
+"ACHAT"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"Radio",
+"Montant (€)"
+],
+[
+"Caption",
+"Cours : 31,17 €"
+],
+[
+"NumberInput",
+"500.0"
+],
+[
+"Button",
+"False"
+],
+[
+"NumberInput",
+"0.0"
+],
+[
+"Button",
+"False"
+],
+[
+"Subheader",
+"Actuel vs projeté"
+],
+[
+"Warning",
+"Epsilon Energie SpA pèserait 91 % des titres."
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"864,70 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"4"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par ligne**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par secteur**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Expander",
+"Détail des écarts (points de %)"
+],
+[
+"Dataframe",
+"                   Ligne  Actuel %  Projeté %  Écart\n0    Epsilon Energie SpA      86.3       86.3    0.0\n1                   Cash       5.3        5.3    0.0\n2"
+],
+[
+"Subheader",
+"Lignes du scénario"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Epsilon Energie SpA**  \nÉnergie · 91 %  \n[📰 Google Actualités](https://news.google.com/search?q=Epsilon+Energie+SpA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>14 013,85 €</b><br><span style='color:#16a34a'>+0,37 % auj.</span><br><span style='color:#16a34a'>+271,5 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **300**\n- PRM : **12,57 €**\n- Cours : **46,71 €**\n- +/- value latente : **+10 241,85 €**\n- Dividendes perçus : **0,00 €**\n- PER : **23,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Alpha SA**  \nLuxe · 4 %  \n[📰 Google Actualités](https://news.google.com/search?q=Alpha+SA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>685,78 €</b><br><span style='color:#dc2626'>-0,99 % auj.</span><br><span style='color:#dc2626'>-70,9 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **22**\n- PRM : **107,17 €**\n- Cours : **31,17 €**\n- +/- value latente : **-1 671,89 €**\n- Dividendes perçus : **12,50 €**\n- PER : **17,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Delta Santé NV**  \nSanté · 3 %  \n[📰 Google Actualités](https://news.google.com/search?q=Delta+Sant%C3%A9+NV+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>431,53 €</b><br><span style='color:#dc2626'>-0,24 % auj.</span><br><span style='color:#dc2626'>-64,3 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **16**\n- PRM : **75,62 €**\n- Cours : **26,97 €**\n- +/- value latente : **-778,47 €**\n- Dividendes perçus : **4,20 €**\n- PER : **22,0**\n- PER prévis"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Gamma Monde UCITS ETF**  \nETF monde · 2 %  \n[📰 Google Actualités](https://news.google.com/search?q=Gamma+Monde+UCITS+ETF+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>240,77 €</b><br><span style='color:#dc2626'>-0,18 % auj.</span><br><span style='color:#dc2626'>-51,8 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **10**\n- PRM : **50,00 €**\n- Cours : **24,08 €**\n- +/- value latente : **-259,23 €**\n- Dividendes perçus : **0,00 €**\n- Actifs sous gestion : **1,2"
+],
+[
+"Expander",
+"✨ Assistant IA du scénario · Analyse & Chat"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### ✨ Analyse IA du scénario"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'analyse."
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### 💬 Discuter de ce scénario"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer le chat."
+],
+[
+"Caption",
+"Simulation de répartition uniquement : aucune prévision de rendement."
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"👀 Watchlist": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Beta Industries AG**  \nIndustrie  \n_note de alice_  \n[📰 Google Actualités](https://news.google.com/search?q=Beta+Industries+AG+bourse&hl=fr&gl=FR&ceid=FR%3Afr"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>21,64 €</b><br><span style='color:#dc2626'>-1,40 % auj.</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Cours : **21,64 €**\n- PER : **17,0**\n- PER prévisionnel : **13,0**\n- Chiffre d'affaires : **2,00 Md €**\n- Bénéfice net : **200,00 M €**\n- EBITDA : **400,00 M "
+],
+[
+"Toggle",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Expander",
+"➕ Ajouter une action / un ETF"
+],
+[
+"TextInput",
+""
+],
+[
+"TextInput",
+""
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"➕ Saisie": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Transaction"
+],
+[
+"Radio",
+"ACHAT"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"NumberInput",
+"1.0"
+],
+[
+"NumberInput",
+"31.17188288596327"
+],
+[
+"NumberInput",
+"0.0"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Import par captures": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Import par captures"
+],
+[
+"Caption",
+"Chargez une ou plusieurs captures de votre portefeuille chez le courtier : l'app propose les achats / ventes qui alignent votre suivi sur la réalité. Rien n'est"
+],
+[
+"FileUploader",
+"[]"
+],
+[
+"Caption",
+"Ajoutez `GEMINI_API_KEY` dans les secrets pour activer l'import."
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Dividende": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Dividende"
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"NumberInput",
+"10.0"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Versement / retrait": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Versement / retrait"
+],
+[
+"Caption",
+"Les versements alimentent le cash du PEA et comptent dans le plafond de 150 000 €. Une « plus-value antérieure » alimente le cash sans compter comme apport."
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"Selectbox",
+"VERSEMENT"
+],
+[
+"NumberInput",
+"100.0"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Secteurs": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Secteurs"
+],
+[
+"Caption",
+"Laissez vide pour utiliser le secteur fourni par Yahoo (en anglais)."
+],
+[
+"TextInput",
+"Luxe"
+],
+[
+"TextInput",
+"ETF monde"
+],
+[
+"TextInput",
+"Santé"
+],
+[
+"TextInput",
+"Énergie"
+],
+[
+"TextInput",
+"Industrie"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Corriger / supprimer": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Corriger / supprimer"
+],
+[
+"Selectbox",
+"transactions"
+],
+[
+"Dataframe",
+"     id       date          isin   type  quantite     prix  frais\n0  1001 AAAA-MM-JJ  FR00ALPHA014  ACHAT      20.0  100.000   10.0\n1  1002 AAAA-MM-JJ  FR00GAMM"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Maintenance & sauvegarde": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : alice"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Maintenance & sauvegarde"
+],
+[
+"Subheader",
+"Historique"
+],
+[
+"Caption",
+"Recalcule la valeur du PEA jour par jour depuis votre 1re opération (cours de clôture Yahoo) et remplace les points existants."
+],
+[
+"Button",
+"False"
+],
+[
+"Subheader",
+"Sauvegarde"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+]
+},
+"demo": {
+"📊 Portefeuille": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"24 364,11 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"14 164,11 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"10 200,00 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"1 306,20 €"
+],
+[
+"Progress",
+"7"
+],
+[
+"Expander",
+"✨ Assistant IA · Analyse & Chat"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### ✨ Analyse IA"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Exemple fictif : aucun appel IA en mode démo. Passez sur un compte personnel pour analyser votre portefeuille."
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"7.0/10"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"_Structure globalement équilibrée, sans ligne ou secteur écrasant le reste._"
+],
+[
+"Markdown",
+"**Diversification sectorielle** · 7/10"
+],
+[
+"Progress",
+"70"
+],
+[
+"Caption",
+"Bien réparti, léger poids du luxe et de l'industrie."
+],
+[
+"Markdown",
+"**CAPEX** · 6/10"
+],
+[
+"Progress",
+"60"
+],
+[
+"Caption",
+"Énergie et industrie capitalistiques compensées par santé et luxe."
+],
+[
+"Markdown",
+"**Diversification géographique** · 8/10"
+],
+[
+"Progress",
+"80"
+],
+[
+"Caption",
+"ETF monde et émergents complètent un cœur européen."
+],
+[
+"Markdown",
+"**Croissance vs Rendement** · 7/10"
+],
+[
+"Progress",
+"70"
+],
+[
+"Caption",
+"Mix équilibré entre dividendes réguliers et valeurs de croissance."
+],
+[
+"Caption",
+"Analysé le JJ/MM/AAAA à HH:MM · exemple fictif"
+],
+[
+"Caption",
+"Analyse générée par une IA à partir de la structure de votre PEA, à titre informatif. Ce n'est pas un conseil en investissement."
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### 💬 Discuter de mon portefeuille"
+],
+[
+"Caption",
+"Chat IA désactivé sur le compte démo pour éviter toute consommation de tokens."
+],
+[
+"Warning",
+"Concentration : Epsilon Energie SpA pèse 91 % des titres (seuil 25 %)."
+],
+[
+"Caption",
+"Cours Yahoo différés · actualisés à HH:MM (cache 5 min)"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Epsilon Energie SpA**  \nÉnergie · 91 %  \n[📰 Google Actualités](https://news.google.com/search?q=Epsilon+Energie+SpA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>21 020,78 €</b><br><span style='color:#16a34a'>+0,37 % auj.</span><br><span style='color:#16a34a'>+271,6 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **450**\n- PRM : **12,57 €**\n- Cours : **46,71 €**\n- +/- value latente : **+15 364,28 €**\n- Dividendes perçus : **0,00 €**\n- PER : **23,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Alpha SA**  \nLuxe · 4 %  \n[📰 Google Actualités](https://news.google.com/search?q=Alpha+SA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>1 028,67 €</b><br><span style='color:#dc2626'>-0,99 % auj.</span><br><span style='color:#dc2626'>-70,9 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **33**\n- PRM : **107,00 €**\n- Cours : **31,17 €**\n- +/- value latente : **-2 502,33 €**\n- Dividendes perçus : **12,50 €**\n- PER : **17,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Delta Santé NV**  \nSanté · 3 %  \n[📰 Google Actualités](https://news.google.com/search?q=Delta+Sant%C3%A9+NV+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>647,30 €</b><br><span style='color:#dc2626'>-0,24 % auj.</span><br><span style='color:#dc2626'>-64,3 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **24**\n- PRM : **75,58 €**\n- Cours : **26,97 €**\n- +/- value latente : **-1 166,70 €**\n- Dividendes perçus : **4,20 €**\n- PER : **22,0**\n- PER prév"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Gamma Monde UCITS ETF**  \nETF monde · 2 %  \n[📰 Google Actualités](https://news.google.com/search?q=Gamma+Monde+UCITS+ETF+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>361,15 €</b><br><span style='color:#dc2626'>-0,18 % auj.</span><br><span style='color:#dc2626'>-51,8 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **15**\n- PRM : **50,00 €**\n- Cours : **24,08 €**\n- +/- value latente : **-388,85 €**\n- Dividendes perçus : **0,00 €**\n- Actifs sous gestion : **1,2"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"91 %"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"4"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"0,1 %"
+],
+[
+"Subheader",
+"Répartition"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par secteur**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par ligne** · couleur = performance"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Performance latente par ligne"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Contribution à la performance (€)"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Subheader",
+"Matrice de notes"
+],
+[
+"Column",
+"None"
+],
+[
+"Selectbox",
+"net_income"
+],
+[
+"Column",
+"None"
+],
+[
+"Selectbox",
+"per"
+],
+[
+"Column",
+"None"
+],
+[
+"Checkbox",
+"False"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Caption",
+"Chaque ligne reçoit, sur chaque axe, une **note de 1 à 10 relative à ce portefeuille** : 10 = le meilleur du lot, 1 = pas de valeur (ex. société déficitaire, sa"
+],
+[
+"Expander",
+"Plus-values réalisées & dividendes"
+],
+[
+"Markdown",
+"- Plus-values réalisées : **+441,00 €**\n- Dividendes nets perçus : **16,70 €**"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"📈 Historique": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Radio",
+"Tout"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Valeur du PEA"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Subheader",
+"Performance vs indice"
+],
+[
+"Caption",
+"Performance pondérée par le temps : neutralise vos versements, base 100."
+],
+[
+"Selectbox",
+"MSCI World (CW8)"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Markdown",
+"Mon PEA : **+1,85 %** · MSCI World (CW8) : **N/A %**"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"🔭 Projet": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Caption",
+"Simulez une répartition future à partir de votre PEA actuel, **sans le modifier**. Les opérations sont fictives, au dernier cours connu."
+],
+[
+"Expander",
+"➕ Nouveau scénario"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"Selectbox",
+"2001"
+],
+[
+"Markdown",
+"**Opérations fictives**"
+],
+[
+"Caption",
+"Aucune opération pour l'instant."
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Expander",
+"➕ Ajouter une opération"
+],
+[
+"Radio",
+"ACHAT"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"Radio",
+"Montant (€)"
+],
+[
+"Caption",
+"Cours : 31,17 €"
+],
+[
+"NumberInput",
+"500.0"
+],
+[
+"Button",
+"False"
+],
+[
+"NumberInput",
+"0.0"
+],
+[
+"Button",
+"False"
+],
+[
+"Subheader",
+"Actuel vs projeté"
+],
+[
+"Warning",
+"Epsilon Energie SpA pèserait 91 % des titres."
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"1 306,20 €"
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"4"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par ligne**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Par secteur**"
+],
+[
+"UnknownElement",
+"None"
+],
+[
+"Expander",
+"Détail des écarts (points de %)"
+],
+[
+"Dataframe",
+"                   Ligne  Actuel %  Projeté %  Écart\n0    Epsilon Energie SpA      86.3       86.3    0.0\n1                   Cash       5.4        5.4    0.0\n2"
+],
+[
+"Subheader",
+"Lignes du scénario"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Epsilon Energie SpA**  \nÉnergie · 91 %  \n[📰 Google Actualités](https://news.google.com/search?q=Epsilon+Energie+SpA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>21 020,78 €</b><br><span style='color:#16a34a'>+0,37 % auj.</span><br><span style='color:#16a34a'>+271,6 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **450**\n- PRM : **12,57 €**\n- Cours : **46,71 €**\n- +/- value latente : **+15 364,28 €**\n- Dividendes perçus : **0,00 €**\n- PER : **23,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Alpha SA**  \nLuxe · 4 %  \n[📰 Google Actualités](https://news.google.com/search?q=Alpha+SA+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>1 028,67 €</b><br><span style='color:#dc2626'>-0,99 % auj.</span><br><span style='color:#dc2626'>-70,9 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **33**\n- PRM : **107,00 €**\n- Cours : **31,17 €**\n- +/- value latente : **-2 502,33 €**\n- Dividendes perçus : **12,50 €**\n- PER : **17,0**\n- PER pr"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Delta Santé NV**  \nSanté · 3 %  \n[📰 Google Actualités](https://news.google.com/search?q=Delta+Sant%C3%A9+NV+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>647,30 €</b><br><span style='color:#dc2626'>-0,24 % auj.</span><br><span style='color:#dc2626'>-64,3 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **24**\n- PRM : **75,58 €**\n- Cours : **26,97 €**\n- +/- value latente : **-1 166,70 €**\n- Dividendes perçus : **4,20 €**\n- PER : **22,0**\n- PER prév"
+],
+[
+"Toggle",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Gamma Monde UCITS ETF**  \nETF monde · 2 %  \n[📰 Google Actualités](https://news.google.com/search?q=Gamma+Monde+UCITS+ETF+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>361,15 €</b><br><span style='color:#dc2626'>-0,18 % auj.</span><br><span style='color:#dc2626'>-51,8 % total</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Quantité : **15**\n- PRM : **50,00 €**\n- Cours : **24,08 €**\n- +/- value latente : **-388,85 €**\n- Dividendes perçus : **0,00 €**\n- Actifs sous gestion : **1,2"
+],
+[
+"Expander",
+"✨ Assistant IA du scénario · Analyse & Chat"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### ✨ Analyse IA du scénario"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Exemple fictif (aucun appel IA en mode démo)."
+],
+[
+"Column",
+"None"
+],
+[
+"Metric",
+"7.2/10"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"_Scénario prudent : diversifie sans bouleverser la structure actuelle._"
+],
+[
+"Markdown",
+"**Diversification sectorielle** · 8/10"
+],
+[
+"Progress",
+"80"
+],
+[
+"Caption",
+"La santé renforcée réduit la domination du luxe."
+],
+[
+"Markdown",
+"🟢 Poids du luxe ramené sous les 20 %"
+],
+[
+"Markdown",
+"🟢 Santé défensive désormais 2e ligne"
+],
+[
+"Markdown",
+"🔴 Exposition industrielle toujours élevée"
+],
+[
+"Markdown",
+"**CAPEX** · 6/10"
+],
+[
+"Progress",
+"60"
+],
+[
+"Caption",
+"Peu de changement : énergie et industrie toujours présentes."
+],
+[
+"Markdown",
+"🟢 Recul relatif de l'énergie dans le total"
+],
+[
+"Markdown",
+"🔴 Semi-conducteurs toujours en poids fort"
+],
+[
+"Markdown",
+"**Diversification géographique** · 8/10"
+],
+[
+"Progress",
+"80"
+],
+[
+"Caption",
+"Inchangée : cœur européen complété par les ETF monde."
+],
+[
+"Markdown",
+"🟢 Aucun changement"
+],
+[
+"Markdown",
+"🔴 Aucun changement"
+],
+[
+"Markdown",
+"**Croissance vs Rendement** · 7/10"
+],
+[
+"Progress",
+"70"
+],
+[
+"Caption",
+"Léger basculement vers le rendement (santé, dividendes)."
+],
+[
+"Markdown",
+"🟢 Rendement du portefeuille un peu plus régulier"
+],
+[
+"Markdown",
+"🔴 Moins d'exposition aux valeurs de croissance"
+],
+[
+"Caption",
+"Analysé le JJ/MM/AAAA à HH:MM · exemple fictif"
+],
+[
+"Caption",
+"Analyse générée par une IA à partir de la structure de votre PEA, à titre informatif. Ce n'est pas un conseil en investissement."
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"#### 💬 Discuter de ce scénario"
+],
+[
+"Caption",
+"Chat IA désactivé sur le compte démo pour éviter toute consommation de tokens."
+],
+[
+"Caption",
+"Simulation de répartition uniquement : aucune prévision de rendement."
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"👀 Watchlist": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Radio",
+"Fondamentaux"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"**Beta Industries AG**  \nIndustrie  \n_note de demo_  \n[📰 Google Actualités](https://news.google.com/search?q=Beta+Industries+AG+bourse&hl=fr&gl=FR&ceid=FR%3Afr)"
+],
+[
+"Column",
+"None"
+],
+[
+"Markdown",
+"<div style='text-align:right'><b>21,64 €</b><br><span style='color:#dc2626'>-1,40 % auj.</span></div>"
+],
+[
+"Expander",
+"Détails"
+],
+[
+"Markdown",
+"- Cours : **21,64 €**\n- PER : **17,0**\n- PER prévisionnel : **13,0**\n- Chiffre d'affaires : **2,00 Md €**\n- Bénéfice net : **200,00 M €**\n- EBITDA : **400,00 M "
+],
+[
+"Toggle",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Expander",
+"➕ Ajouter une action / un ETF"
+],
+[
+"TextInput",
+""
+],
+[
+"TextInput",
+""
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"➕ Saisie": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Transaction"
+],
+[
+"Radio",
+"ACHAT"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"NumberInput",
+"1.0"
+],
+[
+"NumberInput",
+"31.17188288596327"
+],
+[
+"NumberInput",
+"0.0"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Import par captures": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Import par captures"
+],
+[
+"Caption",
+"Chargez une ou plusieurs captures de votre portefeuille chez le courtier : l'app propose les achats / ventes qui alignent votre suivi sur la réalité. Rien n'est"
+],
+[
+"FileUploader",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Indisponible en mode démo (utilise l'API Gemini)."
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Dividende": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Dividende"
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"Selectbox",
+"FR00ALPHA014"
+],
+[
+"NumberInput",
+"10.0"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Versement / retrait": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Versement / retrait"
+],
+[
+"Caption",
+"Les versements alimentent le cash du PEA et comptent dans le plafond de 150 000 €. Une « plus-value antérieure » alimente le cash sans compter comme apport."
+],
+[
+"DateInput",
+"AAAA-MM-JJ"
+],
+[
+"Selectbox",
+"VERSEMENT"
+],
+[
+"NumberInput",
+"100.0"
+],
+[
+"TextInput",
+""
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Secteurs": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Secteurs"
+],
+[
+"Caption",
+"Laissez vide pour utiliser le secteur fourni par Yahoo (en anglais)."
+],
+[
+"TextInput",
+"Luxe"
+],
+[
+"TextInput",
+"ETF monde"
+],
+[
+"TextInput",
+"Santé"
+],
+[
+"TextInput",
+"Énergie"
+],
+[
+"TextInput",
+"Industrie"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Corriger / supprimer": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Corriger / supprimer"
+],
+[
+"Selectbox",
+"transactions"
+],
+[
+"Dataframe",
+"     id       date          isin   type  quantite     prix  frais\n0  2001 AAAA-MM-JJ  FR00ALPHA014  ACHAT      30.0  100.000   10.0\n1  2002 AAAA-MM-JJ  FR00GAMM"
+],
+[
+"Button",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+],
+"Maintenance & sauvegarde": [
+[
+"SpecialBlock",
+"None"
+],
+[
+"Markdown",
+"<style>\n/* ---- Largeur : plein écran sur mobile, colonne large et centrée sur tablette / PC ---------- */\n[data-testid=\"stMainBlockContainer\"], .block-containe"
+],
+[
+"Column",
+"None"
+],
+[
+"Title",
+"📈 Mon PEA"
+],
+[
+"Caption",
+"Compte : demo"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Column",
+"None"
+],
+[
+"Button",
+"False"
+],
+[
+"Button",
+"False"
+],
+[
+"Caption",
+"Vos modifications ne sont visibles que par vous et disparaissent à la fin de la session. IA désactivée."
+],
+[
+"Tab",
+"📊 Portefeuille"
+],
+[
+"Tab",
+"📈 Historique"
+],
+[
+"Tab",
+"🔭 Projet"
+],
+[
+"Tab",
+"👀 Watchlist"
+],
+[
+"Tab",
+"➕ Saisie"
+],
+[
+"Selectbox",
+"Maintenance & sauvegarde"
+],
+[
+"Subheader",
+"Historique"
+],
+[
+"Caption",
+"Recalcule la valeur du PEA jour par jour depuis votre 1re opération (cours de clôture Yahoo) et remplace les points existants."
+],
+[
+"Button",
+"False"
+],
+[
+"Subheader",
+"Sauvegarde"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"DownloadButton",
+"False"
+],
+[
+"SpecialBlock",
+"None"
+],
+[
+"SpecialBlock",
+"None"
+]
+]
+}
+}
